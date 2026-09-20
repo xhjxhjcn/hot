@@ -115,6 +115,44 @@
     <button id="scroll-top" title="回到顶部" aria-label="回到顶部">↑</button>
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
+    <!-- 榜单详情弹窗：点卡片「查看全部」时在本页弹出，不跳页 -->
+    <div class="modal-overlay" id="modalOverlay" aria-hidden="true">
+        <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+            <span class="modal-accent" aria-hidden="true"></span>
+
+            <header class="modal-head">
+                <img class="modal-icon" id="modalIcon" src="" alt="">
+                <div class="modal-head-text">
+                    <h2 class="modal-title" id="modalTitle"></h2>
+                    <p class="modal-meta">
+                        <span class="modal-badge" id="modalBadge" hidden></span>
+                        <span id="modalCount"></span>
+                    </p>
+                </div>
+                <button type="button" class="modal-close" id="modalClose" title="关闭（Esc）" aria-label="关闭弹窗">
+                    <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor"
+                         stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
+                        <path d="M6 6l12 12M18 6L6 18"/>
+                    </svg>
+                </button>
+            </header>
+
+            <div class="modal-body" id="modalBody"></div>
+
+            <footer class="modal-foot">
+                <span class="modal-time" id="modalTime"></span>
+                <div class="modal-actions">
+                    <button type="button" class="modal-act" id="modalRefresh">
+                        <span class="spin-icon" aria-hidden="true">⟳</span><span>刷新</span>
+                    </button>
+                    <a class="modal-act is-primary" id="modalLink" href="#" target="_blank" rel="noopener noreferrer">
+                        前往官网<span class="modal-act-arrow" aria-hidden="true">↗</span>
+                    </a>
+                </div>
+            </footer>
+        </div>
+    </div>
+
     <script src="assets/lunar-data.js"></script>
     <script src="assets/lunar.js"></script>
     <script src="assets/app.js" defer></script>
