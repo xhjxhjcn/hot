@@ -23,7 +23,7 @@
 
     const $ = (sel) => document.querySelector(sel);
 
-    let STATE = { data: null, sources: [], keyword: '', kind: 'all', expanded: new Set() };
+    let STATE = { data: null, sources: [], keyword: '', kind: 'all' };
 
     /* ---------- 工具 ---------- */
     function esc(s) {
@@ -112,7 +112,6 @@
         if (kw && !s.label.toLowerCase().includes(kw) && !s.key.includes(kw)) {
             items = items.filter((it) => (it.title || '').toLowerCase().includes(kw));
         }
-        const expanded = STATE.expanded.has(s.key);
         const upd = STATE.data && STATE.data.updated ? STATE.data.updated : '';
 
         let body;
@@ -122,8 +121,9 @@
             body = items.map(hotRowHTML).join('');
         }
 
+        // 卡片里只放滚动列表，看全量走弹窗（在本页弹出，不跳页也不撑高卡片）
         const more = (s.items || []).length > 12 && s.ok
-            ? `<button type="button" class="expand" data-expand="${esc(s.key)}">${expanded ? '收起' : '展开全部 ' + s.items.length + ' 条'}</button>`
+            ? `<button type="button" class="expand" data-expand="${esc(s.key)}">查看全部 ${s.items.length} 条<span class="expand-arrow" aria-hidden="true">↗</span></button>`
             : '<span></span>';
 
         return `<article class="hot-card${s.ok ? '' : ' is-off'}" id="card-${esc(s.key)}" data-key="${esc(s.key)}">
@@ -134,7 +134,7 @@
                 ${s.badge ? `<span class="card-badge">${esc(s.badge)}</span>` : ''}
                 <button type="button" class="card-refresh" data-refresh="${esc(s.key)}" title="刷新该榜单" aria-label="刷新 ${esc(s.label)}">⟳</button>
             </header>
-            <div class="card-body"${expanded ? ' style="max-height:none"' : ''}>${body}</div>
+            <div class="card-body">${body}</div>
             <footer class="card-foot">
                 <span class="upd">${upd ? esc(relTime(upd)) : '--'}</span>
                 ${more}
@@ -219,6 +219,143 @@
         renderGrid();
     }
 
+    /* ---------- 榜单详情弹窗 ---------- */
+    /* 点卡片「查看全部」时在本页居中弹出，不跳页、也不再把卡片撑高。
+       显隐靠 .is-open 类 + visibility/opacity 过渡；关闭时先摘类让过渡跑完。 */
+    const MODAL = { key: null, lastFocus: null };
+
+    function modalRowHTML(it, i) {
+        const rankCls = i === 0 ? 'r1' : i === 1 ? 'r2' : i === 2 ? 'r3' : '';
+        const hot = fmtHot(it.hot);
+        const desc = (it.desc || '').trim();
+        const chip = desc && desc.length <= 6 ? `<span class="row-chip">${esc(desc)}</span>` : '';
+        const sub = desc && desc.length > 6 ? `<span class="m-row-sub">${esc(desc)}</span>` : '';
+        const href = it.url ? esc(it.url) : '';
+        const tag = href ? 'a' : 'div';
+        const attrs = href ? ` href="${href}" target="_blank" rel="noopener noreferrer"` : '';
+        // --i 决定错峰入场的延迟档位，封顶 18 档，长列表不至于等太久
+        return `<${tag} class="m-row" style="--i:${Math.min(i, 18)}"${attrs}>
+            <span class="rank ${rankCls}">${i + 1}</span>
+            <span class="m-row-main">
+                <span class="m-row-title">${esc(it.title)}${chip}</span>
+                ${sub}
+            </span>
+            ${hot ? `<span class="m-row-hot">${hot}</span>` : ''}
+        </${tag}>`;
+    }
+
+    function modalTimeText() {
+        if (!STATE.data || !STATE.data.updated) return '';
+        // relTime 结尾自带「更新」，这里去掉，免得拼成「更新于…更新」
+        return '榜单更新于 ' + relTime(STATE.data.updated).replace(/更新$/, '');
+    }
+
+    function fillModal(key) {
+        const s = STATE.sources.find((x) => x.key === key);
+        if (!s) return false;
+        const items = s.items || [];
+
+        const icon = $('#modalIcon');
+        icon.src = s.icon || '';
+        icon.alt = s.label;
+
+        $('#modalTitle').textContent = s.label;
+
+        const badge = $('#modalBadge');
+        badge.textContent = s.badge || '';
+        badge.hidden = !s.badge;
+
+        $('#modalCount').textContent = s.ok && items.length
+            ? `共 ${items.length} 条`
+            : '暂时没有抓到数据';
+
+        $('#modalTime').textContent = modalTimeText();
+
+        const link = $('#modalLink');
+        link.href = s.link || '#';
+        link.hidden = !s.link;
+
+        $('#modalBody').innerHTML = (s.ok && items.length)
+            ? items.map(modalRowHTML).join('')
+            : `<div class="card-error"><strong>暂时没有抓到数据</strong>${esc(s.error || '源站可能正在限流')}</div>`;
+
+        $('#modalBody').scrollTop = 0;
+        return true;
+    }
+
+    function lockScroll(on) {
+        const body = document.body;
+        if (on) {
+            if (body.classList.contains('is-locked')) return;
+            // 锁滚动会收起页面滚动条，补上等宽内边距，避免内容横向跳一下
+            const gap = window.innerWidth - document.documentElement.clientWidth;
+            document.documentElement.style.setProperty('--lock-gap', gap > 0 ? gap + 'px' : '0px');
+            body.classList.add('is-locked');
+        } else {
+            body.classList.remove('is-locked');
+        }
+    }
+
+    function trapFocus(e) {
+        const panel = document.querySelector('.modal-panel');
+        if (!panel) return;
+        const nodes = Array.prototype.filter.call(
+            panel.querySelectorAll('a[href], button:not([disabled])'),
+            (el) => el.getClientRects().length > 0);
+        if (!nodes.length) return;
+        const first = nodes[0];
+        const last = nodes[nodes.length - 1];
+        const active = document.activeElement;
+        const inside = panel.contains(active);
+        if (e.shiftKey && (active === first || !inside)) {
+            e.preventDefault();
+            last.focus();
+        } else if (!e.shiftKey && (active === last || !inside)) {
+            e.preventDefault();
+            first.focus();
+        }
+    }
+
+    function openModal(key) {
+        if (!fillModal(key)) return;
+        MODAL.key = key;
+        MODAL.lastFocus = document.activeElement;
+
+        const ov = $('#modalOverlay');
+        lockScroll(true);
+        ov.classList.remove('is-open');
+        void ov.offsetWidth;                 // 强制回流，保证动画能重播
+        ov.classList.add('is-open');
+        ov.setAttribute('aria-hidden', 'false');
+        // 注意：不能在这一帧就 focus()。此时过渡进度还是 0，visibility 的计算值仍是
+        // hidden（visibility 是离散插值），元素不可聚焦，focus 会被静默忽略。
+        // 等过渡起跑后再移入焦点。
+        setTimeout(() => {
+            if (!ov.contains(document.activeElement)) {
+                $('#modalClose').focus({ preventScroll: true });
+            }
+        }, 90);
+    }
+
+    function closeModal() {
+        const ov = $('#modalOverlay');
+        if (!ov.classList.contains('is-open')) return;
+        ov.classList.remove('is-open');
+        ov.setAttribute('aria-hidden', 'true');
+        lockScroll(false);
+
+        const key = MODAL.key;
+        const back = MODAL.lastFocus;
+        MODAL.key = null;
+        MODAL.lastFocus = null;
+
+        // 焦点交还：优先回到触发元素；若当时没有可聚焦元素（脚本触发点击时
+        // activeElement 是 body），就退回该卡片的「查看全部」按钮
+        let target = back && back.focus && back !== document.body ? back : null;
+        if (!target && key) target = document.querySelector(`[data-expand="${key}"]`);
+        if (target) target.focus({ preventScroll: true });
+    }
+
     function wireEvents() {
         // 搜索
         const input = $('#search-input');
@@ -254,18 +391,7 @@
         $('#hotGrid').addEventListener('click', (e) => {
             const ex = e.target.closest('[data-expand]');
             if (ex) {
-                const key = ex.dataset.expand;
-                const card = ex.closest('.hot-card');
-                const body = card.querySelector('.card-body');
-                if (STATE.expanded.has(key)) {
-                    STATE.expanded.delete(key);
-                    body.style.maxHeight = '';
-                    ex.textContent = '展开全部 ' + STATE.sources.find((s) => s.key === key).items.length + ' 条';
-                } else {
-                    STATE.expanded.add(key);
-                    body.style.maxHeight = 'none';
-                    ex.textContent = '收起';
-                }
+                openModal(ex.dataset.expand);
                 return;
             }
             const rf = e.target.closest('[data-refresh]');
@@ -273,7 +399,36 @@
                 rf.classList.add('spin');
                 refreshAll(true).then(() => {
                     toast('「' + (STATE.sources.find((s) => s.key === rf.dataset.refresh) || {}).label + '」已刷新 ✓');
+                    if (MODAL.key === rf.dataset.refresh) fillModal(MODAL.key);
                 }).finally(() => setTimeout(() => rf.classList.remove('spin'), 300));
+            }
+        });
+
+        // 弹窗：关闭按钮 / 点遮罩 / Esc
+        $('#modalClose').addEventListener('click', closeModal);
+        $('#modalOverlay').addEventListener('click', (e) => {
+            if (e.target === $('#modalOverlay')) closeModal();
+        });
+        document.addEventListener('keydown', (e) => {
+            if (!MODAL.key) return;
+            if (e.key === 'Escape') { e.preventDefault(); closeModal(); return; }
+            if (e.key === 'Tab') trapFocus(e);
+        });
+
+        // 弹窗内刷新当前榜单
+        $('#modalRefresh').addEventListener('click', async () => {
+            const btn = $('#modalRefresh');
+            if (btn.classList.contains('busy')) return;
+            btn.classList.add('busy');
+            const key = MODAL.key;
+            try {
+                await refreshAll(true);
+                if (MODAL.key === key) fillModal(key);
+                toast('已刷新 ✓');
+            } catch (err) {
+                toast('刷新失败：' + err.message, true);
+            } finally {
+                setTimeout(() => btn.classList.remove('busy'), 300);
             }
         });
 
@@ -436,6 +591,8 @@
                 document.querySelectorAll('.card-foot .upd').forEach((el) => {
                     el.textContent = relTime(STATE.data.updated);
                 });
+                const mt = $('#modalTime');
+                if (mt && MODAL.key) mt.textContent = modalTimeText();
                 renderOverview();
             }, 60000);
         } catch (e) {
