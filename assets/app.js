@@ -15,7 +15,7 @@
         'thepaper': 'news', 'sina': 'news', 'ithome': 'news', '36kr': 'news',
         'ifanr': 'news', 'zhihu-daily': 'news', 'history': 'news',
         'nytimes': 'news', 'guokr': 'news', 'yystv': 'news',
-        'v2ex': 'community', 'linuxdo': 'community', 'nodeseek': 'community',
+        'v2ex': 'community', 'nodeseek': 'community',
         'tieba': 'community', 'sspai': 'community', 'hupu': 'community',
     };
 

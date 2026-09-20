@@ -620,6 +620,8 @@ def s_ifanr():
 
 
 def _linuxdo_api():
+    """暂时未启用：linux.do 的 Cloudflare 对数据中心 IP 一律 403（含 RSS）。
+    若改用自建 runner（住宅 IP）可把 _linuxdo 加回 SOURCES 恢复。"""
     d = http_json('https://linux.do/top.json?period=daily',
                   headers={'Accept': 'application/json', 'Referer': 'https://linux.do/top'})
     return [mk(pick(it, 'title'),
@@ -738,7 +740,9 @@ SOURCES = [
     ('ifanr',          '爱范儿',       '热文',   'https://www.ifanr.com/',                    s_ifanr, False),
     ('history',        '历史上的今天', '今日',   'https://baike.baidu.com/calendar',          s_history, False),
     ('v2ex',           'V2EX',         '热议',   'https://www.v2ex.com/?tab=hot',             s_v2ex, True),
-    ('linuxdo',        'LINUX DO',     '今日',   'https://linux.do/top',                      s_linuxdo, True),
+    # ('linuxdo',      'LINUX DO',     '今日',   'https://linux.do/top',                      s_linuxdo, True),
+    #   ↑ linux.do 的 Cloudflare 对数据中心 IP 一律 403（JSON 与 RSS 皆然），
+    #     GitHub Actions 抓不到。若将来改用自建 runner，取消本行注释即可恢复。
     ('nodeseek',       'NodeSeek',     '今日',   'https://www.nodeseek.com/',                 s_nodeseek, True),
     ('nytimes',        '纽约时报',     '首页',   'https://www.nytimes.com/',                  s_nytimes, True),
 ]

@@ -51,9 +51,9 @@ python -m http.server 8899
 
 ```jsonc
 {
-  "updated": "2026-09-20T21:47:03+08:00",  // 抓取完成时间（北京时间）
-  "total": 33,
-  "ok": 28,                                 // 成功抓到数据的源数
+  "updated": "2026-09-20T22:02:23+08:00",  // 抓取完成时间（北京时间）
+  "total": 32,
+  "ok": 32,                                 // 成功抓到数据的源数
   "sources": [
     {
       "key": "baidu",
@@ -81,16 +81,20 @@ python -m http.server 8899
 | --- | --- |
 | 榜单 | 百度、微博、抖音、今日头条、知乎、哔哩哔哩（排行榜 / 热搜）、虎扑、豆瓣电影、AcFun、CSDN、掘金、GitHub、HelloGitHub、Hacker News |
 | 资讯 | 腾讯新闻、新浪新闻、网易新闻、澎湃新闻、新浪、IT之家、36氪、爱范儿、知乎日报、果壳、游研社、历史上的今天、纽约时报 |
-| 社区 | 百度贴吧、少数派、V2EX、LINUX DO、NodeSeek |
+| 社区 | 百度贴吧、少数派、V2EX、NodeSeek |
 
-> V2EX / LINUX DO / NodeSeek / 纽约时报 / GitHub 在中国大陆网络下不可直连，本地跑会失败，
+> V2EX / NodeSeek / 纽约时报 / GitHub 在中国大陆网络下不可直连，本地跑会失败，
 > 在 GitHub Actions（海外出口）上正常。这是预期行为，不是 bug。
 
 ### 未接入的平台
 
 什么值得买、吾爱破解、51CTO、虎嗅、数字尾巴、水木社区、NGA、极客公园、微信读书、豆瓣小组、
-天气预警、IT之家喜加一、米哈游系（原神 / 星穹铁道 / 崩坏3 / 米游社）——
-这些站点或已上 WAF/验证码，或需要客户端签名，公开接口抓不到，故未纳入。
+天气预警、IT之家喜加一、米哈游系（原神 / 星穹铁道 / 崩坏3 / 米游社）、LINUX DO ——
+这些站点或已上 WAF / 滑块验证码，或需要客户端签名，公开接口抓不到。
+
+其中 **LINUX DO** 的抓取逻辑已经写好（`_linuxdo_api` / `_linuxdo_rss`），
+但它的 Cloudflare 对数据中心 IP 一律返回 403（JSON 与 RSS 都一样），GitHub Actions 抓不到。
+若将来改用自建 runner（住宅 IP），把 `SOURCES` 里那行注释取消即可恢复（图标 `logos/linuxdo.png` 已保留）。
 
 ## 新增一个源
 
