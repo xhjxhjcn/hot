@@ -1,0 +1,54 @@
+name: Update hot list
+
+on:
+  schedule:
+    # 每小时的第 5、35 分钟各跑一次（UTC）。GitHub 定时任务有排队延迟，属正常现象。
+    - cron: '5,35 * * * *'
+  workflow_dispatch:        # 支持在 Actions 页面手动触发
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-hot
+  cancel-in-progress: false
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Fetch hot list
+        run: python scripts/fetch_hot.py
+
+      - name: Report result
+        run: |
+          python - <<'PY'
+          import json
+          d = json.load(open('data/hot.json', encoding='utf-8'))
+          print(f"updated={d['updated']}  ok={d['ok']}/{d['total']}")
+          for s in d['sources']:
+              if not s['ok']:
+                  print(f"  !! {s['key']}: {s['error']}")
+          PY
+
+      - name: Commit & push
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/hot.json
+          if git diff --staged --quiet; then
+            echo "数据无变化，跳过提交"
+          else
+            git commit -m "chore: 更新热榜数据 $(date -u '+%Y-%m-%d %H:%M UTC')"
+            git push
+          fi

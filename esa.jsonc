@@ -1,0 +1,9 @@
+{
+  "name": "hot",
+  "installCommand": "",
+  "buildCommand": "",
+  "assets": {
+    "directory": "./",
+    "notFoundStrategy": "404Page"
+  }
+}

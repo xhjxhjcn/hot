@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>今日热榜 - 汇聚全网热点，热门尽览无余</title>
+    <meta name="description" content="行恒简安 · 今日热榜：聚合百度、微博、抖音、知乎、哔哩哔哩、今日头条、GitHub 等各大平台实时热点，一屏纵览全网头条。">
+    <meta name="theme-color" content="#eaf1fb">
+    <link rel="icon" href="assets/logo.png">
+    <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+    <canvas id="tech-canvas" aria-hidden="true"></canvas>
+
+    <header class="site-header">
+        <div class="header-inner">
+            <a class="brand" href="#" aria-label="回到顶部">
+                <img src="assets/logo.png" alt="行恒简安" class="brand-logo">
+                <div class="brand-text">
+                    <span class="brand-name">今日热榜</span>
+                    <span class="brand-slogan">汇聚全网热点 · 热门尽览无余</span>
+                </div>
+            </a>
+
+            <nav class="header-nav" aria-label="快速定位">
+                <button type="button" class="nav-link" data-jump="baidu">百度</button>
+                <button type="button" class="nav-link" data-jump="weibo">微博</button>
+                <button type="button" class="nav-link" data-jump="douyin">抖音</button>
+                <button type="button" class="nav-link" data-jump="zhihu">知乎</button>
+                <button type="button" class="nav-link" data-jump="bilibili">哔哩哔哩</button>
+                <button type="button" class="nav-link" data-jump="toutiao">今日头条</button>
+            </nav>
+
+            <div class="header-actions">
+                <div id="datetime" class="clock">
+                    <div class="clock-main">
+                        <span class="clock-hm" id="clockHM">--:--</span>
+                        <span class="clock-sec" id="clockSec">--</span>
+                    </div>
+                    <span class="clock-divider" aria-hidden="true"></span>
+                    <div class="clock-meta">
+                        <span class="clock-ymd" id="clockYmd">----/--/--</span>
+                        <span class="clock-lunar" id="clockLunar"></span>
+                    </div>
+                </div>
+                <button id="dark-toggle" class="icon-btn" title="切换主题" aria-label="切换主题">🌙</button>
+                <button id="refresh-all" class="btn-ghost-sm" title="重新抓取并刷新全部榜单">
+                    <span class="spin-icon" aria-hidden="true">⟳</span><span class="btn-label">刷新</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <!-- 概览 + 搜索 -->
+        <section class="overview">
+            <div class="overview-head">
+                <span class="section-tag">TRENDING NOW</span>
+                <h1>全网热点，一屏纵览</h1>
+                <p id="overviewSub">正在加载各平台榜单…</p>
+            </div>
+
+            <div class="toolbar">
+                <div class="search-box">
+                    <span class="search-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>
+                        </svg>
+                    </span>
+                    <input type="text" id="search-input" placeholder="搜索平台或热点关键词…" autocomplete="off" aria-label="搜索">
+                    <button type="button" id="search-clear" class="search-clear" hidden aria-label="清空">×</button>
+                </div>
+
+                <div class="seg" role="tablist" id="kind-tabs">
+                    <button type="button" class="seg-item active" data-kind="all">全部</button>
+                    <button type="button" class="seg-item" data-kind="rank">榜单</button>
+                    <button type="button" class="seg-item" data-kind="news">资讯</button>
+                    <button type="button" class="seg-item" data-kind="community">社区</button>
+                </div>
+
+                <div class="toolbar-meta">
+                    <span class="dot" id="statusDot"></span>
+                    <span id="dataTime">--</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- 卡片网格 -->
+        <section class="grid-wrap">
+            <div class="hot-grid" id="hotGrid"></div>
+            <div class="empty-state" id="emptyState" hidden>
+                <div class="empty-icon">🔍</div>
+                <p>没有匹配的榜单，换个关键词试试</p>
+            </div>
+        </section>
+    </main>
+
+    <footer class="site-footer">
+        <div class="footer-inner">
+            <div class="footer-brand">
+                <img src="assets/logo.png" alt="" class="footer-logo">
+                <div>
+                    <div class="footer-name">行恒简安</div>
+                    <div class="footer-slogan">行恒致远 · 简安自得</div>
+                </div>
+            </div>
+            <div class="footer-links" id="footerLinks"></div>
+            <div class="footer-copy">
+                © <span id="year">2026</span> 行恒简安 · 数据抓取自各平台官方公开接口，本站仅作聚合展示
+            </div>
+            <div class="footer-beian" id="footerBeian" hidden></div>
+        </div>
+    </footer>
+
+    <button id="scroll-top" title="回到顶部" aria-label="回到顶部">↑</button>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+    <script src="assets/lunar-data.js"></script>
+    <script src="assets/lunar.js"></script>
+    <script src="assets/app.js" defer></script>
+</body>
+</html>
