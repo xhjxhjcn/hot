@@ -28,8 +28,13 @@ const FILES = ['index.html', 'robots.txt'];
 const DIRS = ['assets', 'data', 'logos'];
 
 function main() {
-  fs.rmSync(DIST, { recursive: true, force: true });
+  // 只清空 dist 里的内容，不删 dist 目录本身。
+  // 删目录在 Windows 上会因「有进程把 dist 当工作目录」（比如本地起 http.server
+  // 预览 dist）而报 EBUSY: resource busy or locked。
   fs.mkdirSync(DIST, { recursive: true });
+  for (const name of fs.readdirSync(DIST)) {
+    fs.rmSync(path.join(DIST, name), { recursive: true, force: true });
+  }
 
   let count = 0;
   let bytes = 0;
