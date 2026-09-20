@@ -2,9 +2,32 @@
 
 全网热点聚合站。**数据直接从各平台官方公开接口抓取**，不经过任何第三方聚合服务。
 
-- 前端：纯静态（原生 HTML / CSS / JS，无框架、无构建步骤）
+- 前端：纯静态（原生 HTML / CSS / JS，无框架；`npm run build` 只做文件复制，见下文）
 - 数据：GitHub Actions 定时运行 `scripts/fetch_hot.py`，把结果写进 `data/hot.json`
 - 部署：阿里云 ESA（仓库根目录已带 `esa.jsonc`；`edgeone.json` 作为多云备份）
+
+## 部署（阿里云 ESA）
+
+`build-dist.js` 把站点原样复制到 `dist/`，ESA 发布的是 `dist/`。
+这一步不能省 —— ESA「函数和 Pages」没有零构建自动识别，默认套
+`npm install` + `npm run build` + 输出 `./dist`，而 `esa.jsonc` 里
+**`buildCommand` 写空字符串不等于「跳过构建」**，ESA 会退回默认的 `npm run build`，
+此时仓库没有 `package.json`，构建直接报 `ENOENT: package.json` 失败。
+
+因此这里给一个真实存在的构建脚本，让两条路径都能过：
+
+| 场景 | 结果 |
+| --- | --- |
+| `esa.jsonc` 被识别 | `npm run build` → `dist/` → 发布 `./dist` |
+| `esa.jsonc` 被忽略 | 控制台默认 `npm install && npm run build` → `dist/` → 发布 `./dist`（ESA 默认输出目录） |
+
+另外两条注意事项：
+
+- **`esa.jsonc` 必须是严格 JSON，不能写 `//` 注释**（扩展名是 .jsonc 也没用），
+  否则 ESA 解析失败会静默忽略整个文件并退回默认配置。
+- `dist/` 已在 `.gitignore` 里，由构建现场生成，不要提交。
+
+本地验证构建：`npm run build`（零依赖，无需 `npm install`）。
 
 ## 目录结构
 
@@ -22,9 +45,13 @@
 ├── scripts/
 │   ├── fetch_hot.py            抓取器（零依赖，仅标准库）
 │   └── probe.py                单源调试工具（定位接口 / 修正正则）
+├── build-dist.js               构建脚本：把站点复制到 dist/（ESA 发布目录）
+├── package.json                仅提供 build 脚本，无任何依赖
 ├── .github/workflows/update.yml 定时抓取
 └── esa.jsonc / edgeone.json    部署配置
 ```
+
+`dist/` 是构建产物（已进 `.gitignore`），不提交到仓库。
 
 ## 本地开发
 
@@ -42,8 +69,11 @@ python scripts/fetch_hot.py --list
 HOT_TIMEOUT=6 python scripts/fetch_hot.py
 
 # 起本地预览（必须走 HTTP，直接双击 index.html 会因 file:// 的 CORS 限制读不到 json）
-python -m http.server 8899
+npm run build && cd dist && python -m http.server 8899
 ```
+
+想直接看源码目录而不构建也行，根目录本身就是一份可直接服务的站点：
+`python -m http.server 8899`（工作目录留在仓库根目录）。
 
 ## 数据格式
 
