@@ -244,6 +244,45 @@ def html_cards(html, href_pat, title_pats, base='', window=1200, min_title=8):
     return dedup(out)
 
 
+def try_all(*fns):
+    """依次尝试多个取数方案，返回第一个非空结果。"""
+    errors = []
+    for fn in fns:
+        try:
+            r = fn()
+            if r:
+                return r
+            errors.append('空结果')
+        except Exception as e:  # noqa: BLE001
+            errors.append(f'{type(e).__name__}: {e}'[:80])
+    if errors:
+        raise RuntimeError('；'.join(errors))
+    return []
+
+
+def parse_rss(xml):
+    """极简 RSS 2.0 / Atom 解析，够用即可。"""
+    items = []
+    for m in re.finditer(r'<item>(.*?)</item>', xml, re.S):
+        blk = m.group(1)
+        t = re.search(r'<title>(?:<!\[CDATA\[)?(.*?)(?:\]\]>)?</title>', blk, re.S)
+        l = re.search(r'<link>(?:<!\[CDATA\[)?(.*?)(?:\]\]>)?</link>', blk, re.S)
+        p = re.search(r'<pubDate>(.*?)</pubDate>', blk, re.S)
+        d = re.search(r'<description>(?:<!\[CDATA\[)?(.*?)(?:\]\]>)?</description>', blk, re.S)
+        if t:
+            items.append(mk(t.group(1), l.group(1) if l else '', 0,
+                            p.group(1) if p else (strip_tags(d.group(1))[:80] if d else '')))
+    if items:
+        return items
+    for m in re.finditer(r'<entry>(.*?)</entry>', xml, re.S):
+        blk = m.group(1)
+        t = re.search(r'<title[^>]*>(.*?)</title>', blk, re.S)
+        l = re.search(r'<link[^>]*href="([^"]+)"', blk)
+        if t:
+            items.append(mk(t.group(1), l.group(1) if l else ''))
+    return items
+
+
 # ----------------------------------------------------------------------------
 # 各平台抓取器
 # ----------------------------------------------------------------------------
@@ -524,12 +563,19 @@ def s_acfun():
     return dedup(items)
 
 
+def _zhihu_daily_from(host):
+    def run():
+        d = http_json(f'https://{host}/api/4/news/latest', headers={'User-Agent': UA_MOBILE})
+        return [mk(pick(it, 'title'),
+                   pick(it, 'url') or ('https://daily.zhihu.com/story/' + str(pick(it, 'id'))))
+                for it in pick(d, 'stories', default=[])]
+    return run
+
+
 def s_zhihu_daily():
-    d = http_json('https://news-at.zhihu.com/api/4/news/latest',
-                  headers={'User-Agent': UA_MOBILE})
-    return [mk(pick(it, 'title'),
-               pick(it, 'url') or ('https://daily.zhihu.com/story/' + str(pick(it, 'id'))))
-            for it in pick(d, 'stories', default=[])]
+    # 两个域名互为备份：海外出口上 news-at 有时解析不了
+    return try_all(_zhihu_daily_from('news-at.zhihu.com'),
+                   _zhihu_daily_from('daily.zhihu.com'))
 
 
 def s_tieba():
@@ -573,21 +619,43 @@ def s_ifanr():
     return html_links(html, r'href="(https://www\.ifanr\.com/\d+)"[^>]*>([^<]{8,90})<', min_title=8)
 
 
-def s_linuxdo():
-    d = http_json('https://linux.do/top.json?period=daily', headers={'Accept': 'application/json'})
+def _linuxdo_api():
+    d = http_json('https://linux.do/top.json?period=daily',
+                  headers={'Accept': 'application/json', 'Referer': 'https://linux.do/top'})
     return [mk(pick(it, 'title'),
                f"https://linux.do/t/{pick(it, 'id')}/{pick(it, 'slug')}",
                pick(it, 'posts_count', 'like_count', default=0))
             for it in pick(pick(d, 'topic_list', default={}), 'topics', default=[])]
 
 
-def s_nodeseek():
+def _linuxdo_rss():
+    xml = http_get('https://linux.do/top.rss?period=daily',
+                   headers={'Accept': 'application/rss+xml, text/xml'})
+    return parse_rss(xml)
+
+
+def s_linuxdo():
+    return try_all(_linuxdo_api, _linuxdo_rss)
+
+
+def _nodeseek_api():
     d = http_json('https://www.nodeseek.com/api/forum/top?range=daily',
-                  headers={'Referer': 'https://www.nodeseek.com/', 'Accept': 'application/json'})
+                  headers={'Referer': 'https://www.nodeseek.com/', 'Accept': 'application/json',
+                           'X-Requested-With': 'XMLHttpRequest'})
     rows = d if isinstance(d, list) else pick(d, 'data', default=[])
     return [mk(pick(it, 'title'), f"https://www.nodeseek.com/post-{pick(it, 'id')}-1",
                pick(it, 'comments', default=0))
             for it in rows]
+
+
+def _nodeseek_rss():
+    xml = http_get('https://www.nodeseek.com/rss.xml',
+                   headers={'Accept': 'application/rss+xml, text/xml'})
+    return parse_rss(xml)
+
+
+def s_nodeseek():
+    return try_all(_nodeseek_api, _nodeseek_rss)
 
 
 def s_hellogithub():
@@ -631,15 +699,7 @@ def s_history():
 def s_nytimes():
     xml = http_get('https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml',
                    headers={'Accept': 'application/rss+xml, text/xml'})
-    items = []
-    for m in re.finditer(r'<item>(.*?)</item>', xml, re.S):
-        blk = m.group(1)
-        t = re.search(r'<title>(?:<!\[CDATA\[)?(.*?)(?:\]\]>)?</title>', blk, re.S)
-        l = re.search(r'<link>(.*?)</link>', blk, re.S)
-        p = re.search(r'<pubDate>(.*?)</pubDate>', blk, re.S)
-        if t:
-            items.append(mk(t.group(1), l.group(1) if l else '', 0, p.group(1) if p else ''))
-    return items
+    return parse_rss(xml)
 
 
 # ----------------------------------------------------------------------------
