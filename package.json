@@ -1,0 +1,9 @@
+{
+  "name": "hot",
+  "version": "1.0.0",
+  "private": true,
+  "description": "今日热榜 xhja.cn —— 纯静态站点，构建仅做文件复制（见 build-dist.js）",
+  "scripts": {
+    "build": "node build-dist.js"
+  }
+}
