@@ -1,6 +1,6 @@
 {
   "name": "hot",
   "installCommand": "",
-  "buildCommand": "echo 'static site, no build step'",
-  "outputDirectory": "./"
+  "buildCommand": "npm run build",
+  "outputDirectory": "./dist"
 }
