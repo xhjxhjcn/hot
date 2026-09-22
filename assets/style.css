@@ -1233,3 +1233,26 @@ body.is-locked .site-header { padding-right: var(--lock-gap, 0); }
     * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
     html { scroll-behavior: auto; }
 }
+
+/* ===== 全站统一：联系我 + 备案号（ICP / 公安）===== */
+.xhja-mail{margin-top:12px;display:flex;align-items:center;justify-content:center;gap:8px;
+  font-size:13px;line-height:1.6;color:#6b7b8b}
+.xhja-mail a{display:inline-flex;align-items:center;gap:8px;color:#4290f5;font-weight:600;
+  text-decoration:none}
+.xhja-mail img{height:20px;width:auto;display:block;opacity:.9;transition:opacity .2s}
+.xhja-mail a:hover{text-decoration:underline}
+.xhja-mail a:hover img{opacity:1}
+.xhja-icp{margin-top:10px;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;
+  gap:3px 10px;font-size:12.5px;line-height:1.9;color:#8a97a3}
+.xhja-icp a{display:inline-flex;align-items:center;gap:6px;color:inherit;text-decoration:none;
+  transition:color .2s}
+.xhja-icp a:hover{color:#4290f5;text-decoration:underline}
+.xhja-icp svg{width:14px;height:14px;flex:0 0 auto;opacity:.85}
+.xhja-icp a:hover svg{opacity:1}
+.xhja-icp .sep{opacity:.4;user-select:none}
+@media (prefers-color-scheme:dark){
+  .xhja-mail{color:#8b8ea3}
+  .xhja-mail a{color:#7ec8f5}
+  .xhja-icp{color:#8b8ea3}
+  .xhja-icp a:hover{color:#7ec8f5}
+}

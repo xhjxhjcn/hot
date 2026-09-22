@@ -2,6 +2,6 @@
   "_note": "站点配置。icp 留空则不显示备案号；填完整文案即可自动显示并跳转。",
   "icp": "浙ICP备2026078012号",
   "icpLink": "https://beian.miit.gov.cn/",
-  "psb": "",
-  "psbLink": ""
+  "psb": "浙公网安备33082502000463号",
+  "psbLink": "https://beian.mps.gov.cn/#/query/webSearch?code=33082502000463"
 }
