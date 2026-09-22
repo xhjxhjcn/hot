@@ -24,7 +24,9 @@ const ROOT = __dirname;
 const DIST = path.join(ROOT, 'dist');
 
 // 需要发布到站点的内容（scripts/ 和 .github/ 属于仓库基建，不发布）
-const FILES = ['index.html', 'robots.txt'];
+// favicon.ico 必须列出：浏览器/爬虫会隐式请求站点根的 /favicon.ico，
+// 不放进白名单的话线上就是 404（页面里的 <link rel="icon"> 走 assets/ 不受影响）。
+const FILES = ['index.html', 'robots.txt', 'favicon.ico'];
 const DIRS = ['assets', 'data', 'logos'];
 
 function main() {
