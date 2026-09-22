@@ -19,7 +19,7 @@
         'tieba': 'community', 'sspai': 'community', 'hupu': 'community',
     };
 
-\1
+    const BEIAN_ICON = '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 1.75 3.9 5.2v6.4c0 4.9 3.4 9.6 8.1 10.8 4.7-1.2 8.1-5.9 8.1-10.8V5.2L12 1.75Zm-1.2 14.6-3.7-3.7 1.5-1.5 2.2 2.2 5.3-5.3 1.5 1.5-6.8 6.8Z"/></svg>';
     /* 公安联网备案：盾形+五角星，与 ICP 的盾形+对勾区分开 */
     const PSB_ICON = '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" focusable="false"><path fill="currentColor" fill-rule="evenodd" d="M12 1.75 3.9 5.2v6.4c0 4.9 3.4 9.6 8.1 10.8 4.7-1.2 8.1-5.9 8.1-10.8V5.2L12 1.75Zm0 5.55L10.913 10.103 7.91 10.271 10.24 12.172 9.472 15.079 12 13.45 14.528 15.079 13.76 12.172 16.09 10.271 13.087 10.103 12 7.3Z"/></svg>';
 
