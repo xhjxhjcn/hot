@@ -617,15 +617,17 @@ main {
 
 .row-main { flex: 1 1 auto; min-width: 0; }
 
+/* 标题压成一行：卡片高度就只由「条数」决定（10 条 = 恒定高度），四列才齐平。
+   长标题（知乎 / IT之家 / 36氪等）不再把整列撑高一截。
+   完整标题在「查看全部」弹窗里，鼠标悬停也有 title 提示。 */
 .row-title {
+    display: block;
     font-size: 13.5px;
     line-height: 1.5;
     color: var(--text);
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
+    white-space: nowrap;
     overflow: hidden;
-    word-break: break-word;
+    text-overflow: ellipsis;
 }
 
 .hot-row:hover .row-title { color: var(--primary-dark); }

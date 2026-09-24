@@ -124,7 +124,10 @@
         const chip = desc && desc.length <= 6 ? `<span class="row-chip">${esc(desc)}</span>` : '';
         const href = it.url ? esc(it.url) : '';
         const tag = href ? 'a' : 'div';
-        const attrs = href ? ` href="${href}" target="_blank" rel="noopener noreferrer"` : '';
+        // 卡内标题压成一行（超长省略号截断），顺手挂 title：鼠标悬停仍能看全，
+        // 完整标题也在「查看全部」弹窗里
+        const attrs = (href ? ` href="${href}" target="_blank" rel="noopener noreferrer"` : '')
+            + ` title="${esc(it.title)}"`;
         return `<${tag} class="hot-row"${attrs}>
             <span class="rank ${rankCls}">${i + 1}</span>
             <span class="row-main">
