@@ -19,8 +19,27 @@
         'tieba': 'community', 'sspai': 'community', 'hupu': 'community',
     };
 
+    /* 卡片内固定展示的条数。刻意不做卡内滚动 —— 触屏上下滑很容易误点开链接，
+       想看全量走底部「查看全部 N 条」弹窗。 */
+    const CARD_ITEMS = 10;
+
+    /* 卡片展示顺序：微博第一、今日头条第二，其余按大众关注度递减。
+       没列进来的源（以后新增的平台）排在最后，且保持源站给的原始顺序 ——
+       Array#sort 是稳定排序，同秩时不会打乱。这里只管展示，不动 data/hot.json。 */
+    const SOURCE_ORDER = [
+        'weibo', 'toutiao',
+        'baidu', 'douyin', 'zhihu', 'thepaper',
+        'qq-news', 'netease-news', 'sina-news', 'bilibili-hot', 'bilibili',
+        'tieba', 'hupu', 'douban-movie',
+        'ithome', '36kr', 'acfun',
+        'csdn', 'juejin', 'sspai', 'v2ex', 'nodeseek',
+        'guokr', 'yystv', 'ifanr', 'zhihu-daily', 'sina',
+        'history', 'github', 'hellogithub', 'hackernews', 'nytimes',
+    ];
+    const ORDER_OF = new Map(SOURCE_ORDER.map((k, i) => [k, i]));
+    const ORDER_TAIL = SOURCE_ORDER.length;
+
     const BEIAN_ICON = '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 1.75 3.9 5.2v6.4c0 4.9 3.4 9.6 8.1 10.8 4.7-1.2 8.1-5.9 8.1-10.8V5.2L12 1.75Zm-1.2 14.6-3.7-3.7 1.5-1.5 2.2 2.2 5.3-5.3 1.5 1.5-6.8 6.8Z"/></svg>';
-    const PSB_ICON = '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" focusable="false"><path fill="currentColor" fill-rule="evenodd" d="M12 1.75 3.9 5.2v6.4c0 4.9 3.4 9.6 8.1 10.8 4.7-1.2 8.1-5.9 8.1-10.8V5.2L12 1.75Z M12 7 L13.6 9.9 L15.8 10.2 L14.1 12.2 L12.9 14.6 L12 12.5 L11.1 14.6 L9.9 12.2 L8.2 10.2 L10.4 9.9 Z"/></svg>';
 
     const $ = (sel) => document.querySelector(sel);
 
@@ -60,6 +79,15 @@
 
     function catOf(key) { return CATEGORY[key] || 'rank'; }
 
+    /* 按 SOURCE_ORDER 重排卡片；未列出的源统一排到末尾。 */
+    function sortSources(list) {
+        return list.slice().sort((a, b) => {
+            const ra = ORDER_OF.has(a.key) ? ORDER_OF.get(a.key) : ORDER_TAIL;
+            const rb = ORDER_OF.has(b.key) ? ORDER_OF.get(b.key) : ORDER_TAIL;
+            return ra - rb;
+        });
+    }
+
     /* ---------- 数据 ---------- */
     async function loadData(bust) {
         const url = DATA_PATH + (bust ? '?t=' + Date.now() : '');
@@ -90,9 +118,10 @@
         const rankCls = i === 0 ? 'r1' : i === 1 ? 'r2' : i === 2 ? 'r3' : '';
         const hot = fmtHot(it.hot);
         const desc = (it.desc || '').trim();
-        // 短标签（沸 / 热 / 新 …）跟标题同行，长描述另起一行，避免行高参差
+        // 卡片里只留标题：百度/知乎/澎湃等源每条都带一段摘要（desc），
+        // 在卡里要多占一行，高度比微博头条高出一大截，列与列参差不齐很难看。
+        // 摘要没丢 —— 卡底「查看全部」弹窗里照常显示（见 modalRowHTML）。
         const chip = desc && desc.length <= 6 ? `<span class="row-chip">${esc(desc)}</span>` : '';
-        const sub = desc && desc.length > 6 ? `<span class="row-sub">${esc(desc)}</span>` : '';
         const href = it.url ? esc(it.url) : '';
         const tag = href ? 'a' : 'div';
         const attrs = href ? ` href="${href}" target="_blank" rel="noopener noreferrer"` : '';
@@ -100,7 +129,6 @@
             <span class="rank ${rankCls}">${i + 1}</span>
             <span class="row-main">
                 <span class="row-title">${esc(it.title)}${chip}</span>
-                ${sub}
             </span>
             ${hot ? `<span class="row-hot">${hot}</span>` : ''}
         </${tag}>`;
@@ -115,15 +143,18 @@
         }
         const upd = STATE.data && STATE.data.updated ? STATE.data.updated : '';
 
+        // 卡片里固定就这 10 条，不做卡内滚动（触屏上下滑特别容易误点开链接）
+        const shown = items.slice(0, CARD_ITEMS);
+
         let body;
-        if (!s.ok || !items.length) {
+        if (!s.ok || !shown.length) {
             body = `<div class="card-error"><strong>暂时没有抓到数据</strong>${esc(s.error || '源站可能正在限流')}</div>`;
         } else {
-            body = items.map(hotRowHTML).join('');
+            body = shown.map(hotRowHTML).join('');
         }
 
-        // 卡片里只放滚动列表，看全量走弹窗（在本页弹出，不跳页也不撑高卡片）
-        const more = (s.items || []).length > 12 && s.ok
+        // 超过 10 条的在卡底给入口，看全量走弹窗（在本页弹出，不跳页也不撑高卡片）
+        const more = (s.items || []).length > CARD_ITEMS && s.ok
             ? `<button type="button" class="expand" data-expand="${esc(s.key)}">查看全部 ${s.items.length} 条<span class="expand-arrow" aria-hidden="true">↗</span></button>`
             : '<span></span>';
 
@@ -145,7 +176,7 @@
 
     function renderGrid() {
         const grid = $('#hotGrid');
-        const list = visibleSources();
+        const list = sortSources(visibleSources());
         grid.innerHTML = list.map(cardHTML).join('');
         $('#emptyState').hidden = list.length > 0;
     }
@@ -556,13 +587,12 @@
             if (!r.ok) return;
             const c = await r.json();
             const box = $('#footerBeian');
-            box.classList.add('xhja-icp');
             const parts = [];
             if (c.icp) {
                 parts.push(`<a href="${esc(c.icpLink || 'https://beian.miit.gov.cn/')}" target="_blank" rel="noopener noreferrer">${BEIAN_ICON}${esc(c.icp)}</a>`);
             }
             if (c.psb) {
-                parts.push(`<a href="${esc(c.psbLink || 'https://beian.mps.gov.cn/')}" target="_blank" rel="noopener noreferrer">${PSB_ICON}${esc(c.psb)}</a>`);
+                parts.push(`<a href="${esc(c.psbLink || 'https://beian.mps.gov.cn/')}" target="_blank" rel="noopener noreferrer">${BEIAN_ICON}${esc(c.psb)}</a>`);
             }
             if (parts.length) {
                 box.innerHTML = parts.join('<span class="beian-sep">|</span>');

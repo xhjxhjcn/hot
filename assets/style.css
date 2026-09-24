@@ -107,16 +107,13 @@ button {
 ::selection { background: rgba(66, 144, 245, 0.25); }
 
 /* ===== 滚动条 ===== */
-.card-body::-webkit-scrollbar,
+/* 卡片正文已改成固定 10 条、不滚动，这里只剩侧边菜单需要（详见 .card-body） */
 .side-menu::-webkit-scrollbar { width: 6px; }
 
-.card-body::-webkit-scrollbar-thumb,
 .side-menu::-webkit-scrollbar-thumb {
     background: var(--scrollbar);
     border-radius: 999px;
 }
-
-.card-body::-webkit-scrollbar-track { background: transparent; }
 
 /* ===== Header ===== */
 .site-header {
@@ -577,10 +574,9 @@ main {
 .card-refresh:hover { background: rgba(66, 144, 245, 0.10); color: var(--primary-dark); }
 .card-refresh.spin { animation: spin 0.9s linear infinite; }
 
+/* 卡片正文：固定展示 10 条（见 app.js 的 CARD_ITEMS），刻意不做卡内滚动 ——
+   小框里上下滑极易误点开链接，看全量走卡底「查看全部」弹窗。 */
 .card-body {
-    max-height: 372px;
-    overflow-y: auto;
-    overscroll-behavior: contain;
     padding: 5px 6px 7px;
 }
 
@@ -635,15 +631,9 @@ main {
 .hot-row:hover .row-title { color: var(--primary-dark); }
 [data-theme="dark"] .hot-row:hover .row-title { color: var(--primary-light); }
 
-.row-sub {
-    display: -webkit-box;
-    margin-top: 2px;
-    font-size: 11.5px;
-    color: var(--text-muted);
-    -webkit-line-clamp: 1;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-}
+/* 卡片里不显示摘要（.row-sub 已移除）：百度/知乎/澎湃等源每条都带一段 desc，
+   在卡里要多占一行，10 条就是 10 行，整列比微博头条高出一大截、参差不齐。
+   摘要仍在「查看全部」弹窗里显示（.m-row-sub）。 */
 
 /* 短标签（沸 / 热 / 新）跟标题同行，避免多出一行把行高撑乱 */
 .row-chip {
@@ -719,8 +709,9 @@ main {
 .empty-icon { font-size: 40px; margin-bottom: 14px; opacity: 0.7; }
 
 /* ===== 骨架屏 ===== */
+/* 高度对齐「10 条满卡」的实际高度，数据到位后不跳 */
 .skeleton {
-    height: 300px;
+    height: 460px;
     border-radius: var(--radius-md);
     background: linear-gradient(100deg, var(--bg-2) 30%, var(--bg-3) 50%, var(--bg-2) 70%);
     background-size: 200% 100%;
@@ -1182,8 +1173,6 @@ body.is-locked .site-header { padding-right: var(--lock-gap, 0); }
     .toolbar { padding: 10px 12px; border-radius: var(--radius-sm); }
     .search-box { height: 38px; }
 
-    .card-body { max-height: 330px; }
-
     #scroll-top { right: 16px; bottom: 20px; width: 44px; height: 44px; }
     .header-actions { gap: 8px; }
     .icon-btn { width: 34px; height: 34px; border-radius: 10px; font-size: 15px; }
@@ -1232,22 +1221,4 @@ body.is-locked .site-header { padding-right: var(--lock-gap, 0); }
 @media (prefers-reduced-motion: reduce) {
     * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
     html { scroll-behavior: auto; }
-}
-
-/* xhj 统一页脚 / favicon（2026-09-22） */
-.xhja-mail{margin-top:12px;display:flex;align-items:center;justify-content:center;gap:6px;
-  font-size:13px;line-height:1.6;color:#6b7b8b;text-align:center}
-.xhja-mail a{display:inline-flex;align-items:center;gap:6px;color:#4290f5;font-weight:600;text-decoration:none}
-.xhja-mail a:hover{text-decoration:underline}
-.xhja-icp{margin-top:10px;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;
-  gap:3px 10px;font-size:12.5px;line-height:1.9;color:#8a97a3}
-.xhja-icp a{display:inline-flex;align-items:center;gap:6px;color:inherit;text-decoration:none;transition:color .2s}
-.xhja-icp a:hover{color:#4290f5;text-decoration:underline}
-.xhja-icp svg{width:14px;height:14px;flex:0 0 auto;opacity:.85}
-.xhja-icp .sep{opacity:.4;user-select:none}
-.beian-sep{opacity:.4;margin:0 4px}
-#footerBeian{margin-top:10px}
-@media (prefers-color-scheme:dark){
-  .xhja-mail{color:#8b8ea3} .xhja-mail a{color:#7ec8f5}
-  .xhja-icp{color:#8b8ea3} .xhja-icp a:hover{color:#7ec8f5}
 }
