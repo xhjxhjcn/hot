@@ -354,24 +354,81 @@ def s_toutiao():
             for it in pick(d, 'data', default=[])]
 
 
+# --- B 站：接口强校验设备指纹，缺 buvid3 一律风控返回 -352 ---
+# GitHub Actions 的海外 IP 尤其容易被拦，所以必须先取指纹再请求（进程内缓存，一次抓取只取一次）。
+_BILI_COOKIE = None
+
+
+def bili_cookie():
+    global _BILI_COOKIE
+    if _BILI_COOKIE:
+        return _BILI_COOKIE
+    parts = []
+    # 首选官方前端指纹接口，直接给 buvid3 / buvid4
+    try:
+        d = http_json('https://api.bilibili.com/x/frontend/finger/spi',
+                      headers={'Referer': 'https://www.bilibili.com/'}, retries=1)
+        data = pick(d, 'data', default={})
+        if isinstance(data, dict):
+            if data.get('b_3'):
+                parts.append('buvid3=' + str(data['b_3']))
+            if data.get('b_4'):
+                parts.append('buvid4=' + str(data['b_4']))
+    except Exception:  # noqa: BLE001
+        pass
+    # 兜底：从首页 Set-Cookie 里抠 buvid3
+    if not any(p.startswith('buvid3=') for p in parts):
+        try:
+            req = request.Request('https://www.bilibili.com/', headers={'User-Agent': UA_PC})
+            with _OPENER.open(req, timeout=DEFAULT_TIMEOUT) as resp:
+                for line in (resp.headers.get_all('Set-Cookie') or []):
+                    m = re.search(r'(buvid3=[^;]+)', line)
+                    if m:
+                        parts.append(m.group(1))
+                        break
+        except Exception:  # noqa: BLE001
+            pass
+    parts.append('b_nut=' + str(int(time.time())))
+    _BILI_COOKIE = '; '.join(parts) + ';'
+    return _BILI_COOKIE
+
+
+def _bili_headers(referer):
+    return {'Referer': referer, 'Origin': 'https://www.bilibili.com',
+            'Cookie': bili_cookie()}
+
+
+def _bili_owner(it):
+    o = pick(it, 'owner', default={})
+    return o.get('name', '') if isinstance(o, dict) else ''
+
+
 def s_bilibili():
-    d = http_json('https://api.bilibili.com/x/web-interface/ranking/v2?rid=0&type=all',
-                  headers={'Referer': 'https://www.bilibili.com/v/popular/rank/all',
-                           'Origin': 'https://www.bilibili.com'})
-    items = []
-    for it in pick(pick(d, 'data', default={}), 'list', default=[]):
-        owner = pick(it, 'owner', default={})
-        items.append(mk(pick(it, 'title'),
-                        'https://www.bilibili.com/video/' + str(pick(it, 'bvid')),
-                        pick(pick(it, 'stat', default={}), 'view', default=0),
-                        owner.get('name', '') if isinstance(owner, dict) else ''))
-    return items
+    # 主接口：全站排行榜；被风控(-352)/异常时回退到「综合热门」
+    def _rank():
+        d = http_json('https://api.bilibili.com/x/web-interface/ranking/v2?rid=0&type=all',
+                      headers=_bili_headers('https://www.bilibili.com/v/popular/rank/all'))
+        return [mk(pick(it, 'title'),
+                   'https://www.bilibili.com/video/' + str(pick(it, 'bvid')),
+                   pick(pick(it, 'stat', default={}), 'view', default=0),
+                   _bili_owner(it))
+                for it in pick(pick(d, 'data', default={}), 'list', default=[])]
+
+    def _popular():
+        d = http_json('https://api.bilibili.com/x/web-interface/popular?ps=50&pn=1',
+                      headers=_bili_headers('https://www.bilibili.com/'))
+        return [mk(pick(it, 'title'),
+                   pick(it, 'short_link_v2') or ('https://www.bilibili.com/video/' + str(pick(it, 'bvid'))),
+                   pick(pick(it, 'stat', default={}), 'view', default=0),
+                   _bili_owner(it))
+                for it in pick(pick(d, 'data', default={}), 'list', default=[])]
+
+    return try_all(_rank, _popular)
 
 
 def s_bilibili_hot():
     d = http_json('https://api.bilibili.com/x/web-interface/wbi/search/square?limit=30',
-                  headers={'Referer': 'https://www.bilibili.com/',
-                           'Origin': 'https://www.bilibili.com'})
+                  headers=_bili_headers('https://www.bilibili.com/'))
     trend = pick(pick(d, 'data', default={}), 'trending', default={})
     items = []
     for it in pick(trend, 'list', default=[]):

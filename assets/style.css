@@ -186,35 +186,6 @@ button {
     white-space: nowrap;
 }
 
-.header-nav {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    flex: 1 1 auto;
-    justify-content: center;
-}
-
-.nav-link {
-    padding: 8px 15px;
-    border-radius: 999px;
-    font-size: 13.5px;
-    font-weight: 500;
-    color: var(--text-secondary);
-    transition: all 0.25s ease;
-    white-space: nowrap;
-}
-
-.nav-link:hover {
-    color: var(--primary-dark);
-    background: rgba(66, 144, 245, 0.08);
-}
-
-.nav-link.active {
-    color: #fff;
-    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
-    box-shadow: 0 4px 14px rgba(66, 144, 245, 0.32);
-}
-
 .header-actions {
     display: flex;
     align-items: center;
@@ -759,7 +730,12 @@ main {
 .footer-links a:hover { color: var(--primary-dark); }
 [data-theme="dark"] .footer-links a:hover { color: var(--primary-light); }
 
-.footer-copy { text-align: center; color: var(--text-muted); font-size: 12.5px; }
+.footer-copy { margin-top: 10px; text-align: center; color: var(--text-muted); font-size: 12.5px; }
+
+.xhja-mail { margin-top: 10px; text-align: center; font-size: 13px; }
+.xhja-mail a { color: var(--text-secondary); transition: color 0.2s ease; }
+.xhja-mail a:hover { color: var(--primary-dark); }
+[data-theme="dark"] .xhja-mail a:hover { color: var(--primary-light); }
 
 .footer-beian { margin-top: 10px; text-align: center; font-size: 12px; color: var(--text-muted); }
 .footer-beian a { display: inline-flex; align-items: center; gap: 6px; color: var(--text-muted); transition: color 0.2s; }
@@ -1137,10 +1113,6 @@ body.is-locked .site-header { padding-right: var(--lock-gap, 0); }
 .toast.err { border-color: rgba(239, 68, 68, 0.35); color: var(--danger); }
 
 /* ===== 响应式 ===== */
-@media (max-width: 1280px) {
-    .header-nav { display: none; }
-}
-
 @media (max-width: 1024px) {
     .overview { padding-top: 34px; }
     .overview-head h1 { font-size: 29px; }

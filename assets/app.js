@@ -237,16 +237,6 @@
         }
     }
 
-    function jumpTo(key) {
-        const el = $('#card-' + key);
-        if (!el) { toast('该榜单当前被筛选隐藏了'); return; }
-        const top = el.getBoundingClientRect().top + window.scrollY - 96;
-        window.scrollTo({ top, behavior: 'smooth' });
-        el.style.transition = 'box-shadow .3s ease, border-color .3s ease';
-        el.style.boxShadow = '0 0 0 3px rgba(66,144,245,.45), 0 12px 40px rgba(66,144,245,.25)';
-        setTimeout(() => { el.style.boxShadow = ''; }, 1600);
-    }
-
     function setKind(kind) {
         STATE.kind = kind;
         document.querySelectorAll('.seg-item').forEach((b) =>
@@ -414,10 +404,6 @@
         // 分类
         document.querySelectorAll('.seg-item').forEach((b) =>
             b.addEventListener('click', () => setKind(b.dataset.kind)));
-
-        // 页眉快速定位
-        document.querySelectorAll('[data-jump]').forEach((b) =>
-            b.addEventListener('click', () => jumpTo(b.dataset.jump)));
 
         // 刷新
         $('#refresh-all').addEventListener('click', () => refreshAll(false));
