@@ -171,6 +171,8 @@ npm run build && cd dist && python -m http.server 8899
       >> /var/log/hot-dispatch.log 2>&1        # hot-dispatch
 
 脚本与凭据放在 `/opt/xhj-hot-dispatch/`（`config.json` 存 PAT，权限 600）。
+仓库内 `scripts/dispatch_hot.py` 是它的版本源（**不含**凭据，部署时另建
+`config.json`）。
 脚本自带防重复保护：上一次 run 仍在 `in_progress` / `queued` 时自动跳过，
 不会把 Actions 额度烧在排队上。
 
