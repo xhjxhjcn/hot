@@ -162,5 +162,31 @@ npm run build && cd dist && python -m http.server 8899
 
 ## 更新频率
 
-`update.yml` 每小时的第 5、35 分钟各跑一次（UTC）。GitHub 的定时任务有排队延迟，
-实际执行时间可能晚几分钟，属正常现象。
+**主触发（ECS crontab）** —— ECS `115.29.227.163` 每 30 分钟调一次 GitHub 的
+`workflow_dispatch` API，主动唤醒 `update.yml`：
+
+    # crontab 条目（与 /tmp/xhj-moments-index.lock 那条错开分钟）
+    5,35 * * * * flock -n /tmp/xhj-hot-dispatch.lock \
+      /usr/bin/python3 /opt/xhj-hot-dispatch/dispatch_hot.py --quiet \
+      >> /var/log/hot-dispatch.log 2>&1        # hot-dispatch
+
+脚本与凭据放在 `/opt/xhj-hot-dispatch/`（`config.json` 存 PAT，权限 600）。
+脚本自带防重复保护：上一次 run 仍在 `in_progress` / `queued` 时自动跳过，
+不会把 Actions 额度烧在排队上。
+
+### 为什么不用 GitHub 自带的 `schedule`
+
+GitHub Actions 对**低活跃仓库**（长期只有 bot 提交）的定时触发会严重降级。
+2026-10-13 实测 `update.yml` 的实际运行间隔为 3.3 ~ 9.9 小时（平均约 7 小时），
+仅为 `cron: '5,35 * * * *'` 声明频率的 ~7%，导致站点长期展示数小时前的旧热点
+——当天与微博实时热搜前 20 条的**重合度一度为 0/20**。改用外部触发后恢复到
+每 30 分钟更新，重合度回到 18/20。
+
+`update.yml` 里的 `schedule` 保留作为兜底（万一 ECS 或网络故障）；两个触发源由
+workflow 的 `concurrency: update-hot`（`cancel-in-progress: false`）串行化，
+不会并发打架。
+
+### 额度
+
+单次运行约 20 秒，按 1 分钟计费；每 30 分钟一次 ≈ 1440 分钟/月，加兜底
+`schedule` 约 1500 分钟/月，仍在私有仓库免费额度（2000 分钟/月）以内。
