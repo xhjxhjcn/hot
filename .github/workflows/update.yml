@@ -1,10 +1,14 @@
 name: Update hot list
 
 on:
+  # 主触发入口：ECS 115.29.227.163 的 crontab 每 30 分钟调一次 workflow_dispatch
+  # API（脚本 /opt/xhj-hot-dispatch/dispatch_hot.py）。原因见 README「更新频率」。
+  workflow_dispatch:
+
+  # 兜底：GitHub 对低活跃仓库的 schedule 会严重降级（2026-10 实测平均约 7 小时
+  # 才跑一次，仅为声明频率的 ~7%），故仅作容灾保留。
   schedule:
-    # 每小时的第 5、35 分钟各跑一次（UTC）。GitHub 定时任务有排队延迟，属正常现象。
     - cron: '5,35 * * * *'
-  workflow_dispatch:        # 支持在 Actions 页面手动触发
 
 permissions:
   contents: write
