@@ -4,7 +4,8 @@
 今日热榜 · 数据抓取器（零依赖，仅用 Python 标准库）
 
 直接从各平台官方接口/页面抓取榜单，不依赖任何第三方聚合 API。
-输出：data/hot.json
+输出：data/hot.json（供前端与预渲染使用）
+      data/archive/<YYYY-MM-DD>.json（当日精简快照，预渲染成 /today/<日期>.html）
 
 用法：
     python scripts/fetch_hot.py                 # 抓取全部源
@@ -30,6 +31,12 @@ from urllib import error, parse, request
 CST = timezone(timedelta(hours=8))
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT_PATH = os.path.join(ROOT, 'data', 'hot.json')
+
+# 每日归档：build-dist.js 的预渲染会把 data/archive/*.json 变成 /today/<日期>.html。
+# 保留天数与 scripts/prerender.js 的归档策略对应，别无限膨胀仓库体积。
+ARCHIVE_DIR = os.path.join(ROOT, 'data', 'archive')
+ARCHIVE_PER_SOURCE = 20
+ARCHIVE_KEEP_DAYS = 90
 
 UA_MOBILE = ('Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) '
              'AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1')
@@ -823,6 +830,53 @@ def fetch_one(entry):
                     elapsed=round(time.time() - started, 2))
 
 
+def write_daily_snapshot(payload):
+    """存一份当天精简快照，供预渲染生成 /today/<日期>.html（吃日期类长尾词）。
+
+    写入时机刻意收敛：当天首次抓取时建档，20:00 之后覆盖成收尾状态。
+    否则每 30 分钟改写同一个文件，会把仓库历史撑爆、也让 diff 毫无意义。
+    返回 (路径, 是否真的写了)。
+    """
+    now = datetime.now(CST)
+    day = now.strftime('%Y-%m-%d')
+    path = os.path.join(ARCHIVE_DIR, f'{day}.json')
+    if os.path.exists(path) and now.hour < 20:
+        return path, False
+
+    slim = []
+    for s in payload['sources']:
+        if not s.get('ok'):
+            continue
+        items = [{'title': it.get('title', ''), 'url': it.get('url') or '', 'hot': it.get('hot') or 0}
+                 for it in (s.get('items') or [])[:ARCHIVE_PER_SOURCE]]
+        if items:
+            slim.append({'key': s['key'], 'label': s.get('label', s['key']),
+                         'badge': s.get('badge') or '', 'items': items})
+
+    snap = {'date': day, 'updated': payload['updated'], 'sources': slim}
+    os.makedirs(ARCHIVE_DIR, exist_ok=True)
+    with open(path, 'w', encoding='utf-8') as f:
+        json.dump(snap, f, ensure_ascii=False, separators=(',', ':'))
+    return path, True
+
+
+def prune_archive():
+    """只保留最近 ARCHIVE_KEEP_DAYS 天，避免仓库无限增长。返回被删掉的文件名。"""
+    if not os.path.isdir(ARCHIVE_DIR):
+        return []
+    names = sorted(n for n in os.listdir(ARCHIVE_DIR)
+                   if re.fullmatch(r'\d{4}-\d{2}-\d{2}\.json', n))
+    if len(names) <= ARCHIVE_KEEP_DAYS:
+        return []
+    removed = names[:len(names) - ARCHIVE_KEEP_DAYS]
+    for n in removed:
+        try:
+            os.remove(os.path.join(ARCHIVE_DIR, n))
+        except OSError:
+            pass
+    return removed
+
+
 def main(argv):
     if '--list' in argv:
         for k, label, badge, _l, _f, blocked in SOURCES:
@@ -860,6 +914,13 @@ def main(argv):
 
     print(f"\n完成：{ok_cnt}/{len(results)} 源成功，写入 {OUT_PATH} "
           f"({os.path.getsize(OUT_PATH)/1024:.1f} KB)")
+
+    arc, written = write_daily_snapshot(payload)
+    print(f"  归档快照 {os.path.basename(arc)}：{'已写入' if written else '保留（20 点后覆盖）'}")
+    pruned = prune_archive()
+    if pruned:
+        print(f"  清理超过 {ARCHIVE_KEEP_DAYS} 天的归档：{len(pruned)} 份")
+
     failed = [r for r in results if not r['ok']]
     if failed:
         print('失败源：' + ', '.join(f"{r['key']}({r['error']})" for r in failed))

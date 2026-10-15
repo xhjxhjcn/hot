@@ -9,16 +9,6 @@
     const CONFIG_PATH = 'data/config.json';
     const THEME_KEY = 'hot_theme';
 
-    /* 各源所属分类，用于筛选。未列出的归入「榜单」。 */
-    const CATEGORY = {
-        'qq-news': 'news', 'sina-news': 'news', 'netease-news': 'news',
-        'thepaper': 'news', 'sina': 'news', 'ithome': 'news', '36kr': 'news',
-        'ifanr': 'news', 'zhihu-daily': 'news', 'history': 'news',
-        'nytimes': 'news', 'guokr': 'news', 'yystv': 'news',
-        'v2ex': 'community', 'nodeseek': 'community',
-        'tieba': 'community', 'sspai': 'community', 'hupu': 'community',
-    };
-
     /* 卡片内固定展示的条数。刻意不做卡内滚动 —— 触屏上下滑很容易误点开链接，
        想看全量走底部「查看全部 N 条」弹窗。 */
     const CARD_ITEMS = 10;
@@ -43,7 +33,7 @@
 
     const $ = (sel) => document.querySelector(sel);
 
-    let STATE = { data: null, sources: [], keyword: '', kind: 'all' };
+    let STATE = { data: null, sources: [] };
 
     /* ---------- 工具 ---------- */
     function esc(s) {
@@ -77,8 +67,6 @@
         return `${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
     }
 
-    function catOf(key) { return CATEGORY[key] || 'rank'; }
-
     /* 按 SOURCE_ORDER 重排卡片；未列出的源统一排到末尾。 */
     function sortSources(list) {
         return list.slice().sort((a, b) => {
@@ -99,21 +87,10 @@
     }
 
     /* ---------- 渲染 ---------- */
-    function sourceMatches(s, kw) {
-        if (!kw) return true;
-        if (s.label.toLowerCase().includes(kw) || s.key.includes(kw)) return true;
-        if (s.badge && s.badge.toLowerCase().includes(kw)) return true;
-        return (s.items || []).some((it) => (it.title || '').toLowerCase().includes(kw));
-    }
-
-    function visibleSources() {
-        const kw = STATE.keyword.trim().toLowerCase();
-        return STATE.sources.filter((s) => {
-            if (STATE.kind !== 'all' && catOf(s.key) !== STATE.kind) return false;
-            return sourceMatches(s, kw);
-        });
-    }
-
+    /* 卡片只有一种排序（SOURCE_ORDER），没有筛选维度：
+       站内关键词过滤只能在本页 32 张卡片里找，用户真正要的是「搜全网」，
+       已换成页头的全网搜索框（见 initSiteSearch）；分类标签
+       （全部/榜单/资讯/社区）也只是粗分类，已撤掉。 */
     function hotRowHTML(it, i) {
         const rankCls = i === 0 ? 'r1' : i === 1 ? 'r2' : i === 2 ? 'r3' : '';
         const hot = fmtHot(it.hot);
@@ -138,12 +115,7 @@
     }
 
     function cardHTML(s) {
-        const kw = STATE.keyword.trim().toLowerCase();
-        // 搜索时只展示命中的条目，避免无关内容干扰
-        let items = s.items || [];
-        if (kw && !s.label.toLowerCase().includes(kw) && !s.key.includes(kw)) {
-            items = items.filter((it) => (it.title || '').toLowerCase().includes(kw));
-        }
+        const items = s.items || [];
         const upd = STATE.data && STATE.data.updated ? STATE.data.updated : '';
 
         // 卡片里固定就这 10 条，不做卡内滚动（触屏上下滑特别容易误点开链接）
@@ -167,7 +139,6 @@
                      onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'card-icon',textContent:'📰'}))">
                 <h2 class="card-title">${esc(s.label)}</h2>
                 ${s.badge ? `<span class="card-badge">${esc(s.badge)}</span>` : ''}
-                <button type="button" class="card-refresh" data-refresh="${esc(s.key)}" title="刷新该榜单" aria-label="刷新 ${esc(s.label)}">⟳</button>
             </header>
             <div class="card-body">${body}</div>
             <footer class="card-foot">
@@ -179,17 +150,17 @@
 
     function renderGrid() {
         const grid = $('#hotGrid');
-        const list = sortSources(visibleSources());
-        grid.innerHTML = list.map(cardHTML).join('');
-        $('#emptyState').hidden = list.length > 0;
+        grid.innerHTML = sortSources(STATE.sources).map(cardHTML).join('');
     }
 
     function renderOverview() {
         if (!STATE.data) return;
         const ok = STATE.sources.filter((s) => s.ok).length;
         const items = STATE.sources.reduce((n, s) => n + (s.ok ? s.items.length : 0), 0);
+        // 与 scripts/prerender.js 的 overviewSub 保持同一句话，否则数据加载完
+        // 文案会「跳」一下、行数也跟着变。
         $('#overviewSub').textContent =
-            `已聚合 ${ok} 个平台 · ${items.toLocaleString('zh-CN')} 条热点，数据来自各平台官方公开接口`;
+            `已聚合 ${ok} 个平台 · ${items.toLocaleString('zh-CN')} 条热点 · 每 30 分钟自动更新`;
         $('#dataTime').textContent = absTime(STATE.data.updated);
 
         const ageMin = (Date.now() - Date.parse(STATE.data.updated)) / 60000;
@@ -219,7 +190,10 @@
         toast._timer = setTimeout(() => t.classList.remove('show'), 2400);
     }
 
-    async function refreshAll(silent) {
+    /* 页头「刷新」：带着 ?t= 重新拉一次 data/hot.json，绕过浏览器与边缘缓存。
+       注意它不能触发服务端重新抓取 —— 抓取由 GitHub Actions 每 30 分钟跑，
+       静态站没有后端。所以这里只负责「拿到最新的那一份」。 */
+    async function refreshAll() {
         const btn = $('#refresh-all');
         btn.classList.add('loading');
         try {
@@ -228,20 +202,13 @@
             STATE.sources = d.sources;
             render();
             renderFooterLinks();
-            if (!silent) toast('数据已刷新 ✓');
+            toast('数据已刷新 ✓');
         } catch (e) {
-            if (!silent) toast('刷新失败：' + e.message, true);
+            toast('刷新失败：' + e.message, true);
             $('#statusDot').className = 'dot err';
         } finally {
             setTimeout(() => btn.classList.remove('loading'), 400);
         }
-    }
-
-    function setKind(kind) {
-        STATE.kind = kind;
-        document.querySelectorAll('.seg-item').forEach((b) =>
-            b.classList.toggle('active', b.dataset.kind === kind));
-        renderGrid();
     }
 
     /* ---------- 榜单详情弹窗 ---------- */
@@ -382,47 +349,13 @@
     }
 
     function wireEvents() {
-        // 搜索
-        const input = $('#search-input');
-        let timer;
-        input.addEventListener('input', () => {
-            clearTimeout(timer);
-            timer = setTimeout(() => {
-                STATE.keyword = input.value;
-                $('#search-clear').hidden = !input.value;
-                renderGrid();
-            }, 160);
-        });
-        $('#search-clear').addEventListener('click', () => {
-            input.value = '';
-            STATE.keyword = '';
-            $('#search-clear').hidden = true;
-            renderGrid();
-            input.focus();
-        });
-
-        // 分类
-        document.querySelectorAll('.seg-item').forEach((b) =>
-            b.addEventListener('click', () => setKind(b.dataset.kind)));
-
         // 刷新
-        $('#refresh-all').addEventListener('click', () => refreshAll(false));
+        $('#refresh-all').addEventListener('click', () => refreshAll());
 
         // 卡片内交互（事件委托）
         $('#hotGrid').addEventListener('click', (e) => {
             const ex = e.target.closest('[data-expand]');
-            if (ex) {
-                openModal(ex.dataset.expand);
-                return;
-            }
-            const rf = e.target.closest('[data-refresh]');
-            if (rf) {
-                rf.classList.add('spin');
-                refreshAll(true).then(() => {
-                    toast('「' + (STATE.sources.find((s) => s.key === rf.dataset.refresh) || {}).label + '」已刷新 ✓');
-                    if (MODAL.key === rf.dataset.refresh) fillModal(MODAL.key);
-                }).finally(() => setTimeout(() => rf.classList.remove('spin'), 300));
-            }
+            if (ex) openModal(ex.dataset.expand);
         });
 
         // 弹窗：关闭按钮 / 点遮罩 / Esc
@@ -436,23 +369,6 @@
             if (e.key === 'Tab') trapFocus(e);
         });
 
-        // 弹窗内刷新当前榜单
-        $('#modalRefresh').addEventListener('click', async () => {
-            const btn = $('#modalRefresh');
-            if (btn.classList.contains('busy')) return;
-            btn.classList.add('busy');
-            const key = MODAL.key;
-            try {
-                await refreshAll(true);
-                if (MODAL.key === key) fillModal(key);
-                toast('已刷新 ✓');
-            } catch (err) {
-                toast('刷新失败：' + err.message, true);
-            } finally {
-                setTimeout(() => btn.classList.remove('busy'), 300);
-            }
-        });
-
         // 回到顶部
         const st = $('#scroll-top');
         window.addEventListener('scroll', () => {
@@ -462,6 +378,50 @@
 
         // 主题
         $('#dark-toggle').addEventListener('click', toggleTheme);
+    }
+
+    /* ---------- 全网搜索 ---------- */
+    /* 页头搜索框直接提交给搜索引擎，不做站内过滤（见 renderGrid 上方注释）。
+       参数名各引擎不同（百度用 wd，必应/谷歌用 q），所以切换引擎时要同时改
+       form.action 和 input.name —— 这样提交完全交给浏览器原生行为，
+       不需要 JS 拼 URL，中键新开标签页也能正常工作。 */
+    const ENGINES = {
+        baidu: { action: 'https://www.baidu.com/s', param: 'wd' },
+        bing: { action: 'https://www.bing.com/search', param: 'q' },
+        google: { action: 'https://www.google.com/search', param: 'q' },
+    };
+    const ENGINE_KEY = 'hot_search_engine';
+
+    function initSiteSearch() {
+        const form = $('#siteSearch');
+        const sel = $('#search-engine');
+        const input = $('#search-input');
+        if (!form || !sel || !input) return;
+
+        const apply = () => {
+            const e = ENGINES[sel.value] || ENGINES.baidu;
+            form.action = e.action;
+            input.name = e.param;
+        };
+
+        let saved = null;
+        try { saved = localStorage.getItem(ENGINE_KEY); } catch (e) { /* 忽略 */ }
+        if (saved && ENGINES[saved]) sel.value = saved;
+        apply();
+
+        sel.addEventListener('change', () => {
+            apply();
+            try { localStorage.setItem(ENGINE_KEY, sel.value); } catch (e) { /* 忽略 */ }
+            input.focus();
+        });
+
+        // 空关键词不放行，否则会跳到一个空白结果页
+        form.addEventListener('submit', (e) => {
+            if (!input.value.trim()) {
+                e.preventDefault();
+                input.focus();
+            }
+        });
     }
 
     /* ---------- 主题 ---------- */
@@ -596,11 +556,21 @@
         initTechCanvas();
         initDateTime();
         wireEvents();
+        initSiteSearch();
         loadConfig();
         $('#year').textContent = new Date().getFullYear();
 
+        // ?q=关键词：分享链接可以带词直达，自动填进搜索框（不触发跳转）
+        const q0 = new URLSearchParams(location.search).get('q');
+        if (q0) $('#search-input').value = q0;
+
         const grid = $('#hotGrid');
-        grid.innerHTML = Array.from({ length: 8 }, () => '<div class="skeleton"></div>').join('');
+        // 首页在构建期已被 scripts/prerender.js 预渲染过（静态榜单卡片就在 DOM 里，
+        // 是给爬虫和首屏用的）。这里只有当 grid 真的为空时才铺骨架屏 ——
+        // 否则会把已有内容闪成骨架再画回来。
+        if (!grid.children.length) {
+            grid.innerHTML = Array.from({ length: 8 }, () => '<div class="skeleton"></div>').join('');
+        }
 
         try {
             STATE.data = await loadData(false);

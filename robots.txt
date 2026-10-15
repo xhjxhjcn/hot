@@ -1,2 +1,5 @@
 User-agent: *
 Allow: /
+
+# 单平台榜单：/board/<平台>.html ｜ 领域热榜：/topic/<领域>.html
+Sitemap: https://hot.xhja.cn/sitemap.xml

@@ -3,9 +3,42 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>今日热榜 - 汇聚全网热点，热门尽览无余</title>
-    <meta name="description" content="行恒简安 · 今日热榜：聚合百度、微博、抖音、知乎、哔哩哔哩、今日头条、GitHub 等各大平台实时热点，一屏纵览全网头条。">
+    <title>今日热榜 - 全网热搜实时聚合｜微博热搜榜·百度热搜·抖音热榜·知乎热榜·B站热门</title>
+    <meta name="description" content="今日热榜（行恒简安）实时聚合微博热搜榜、百度热搜榜、抖音热榜、知乎热榜、B站热门排行榜、今日头条、腾讯新闻、澎湃新闻、IT之家、36氪、GitHub Trending 等平台公开榜单，每 30 分钟自动更新，一屏纵览全网热搜与热点排行。">
+    <meta name="keywords" content="今日热榜,全网热榜,热搜榜,微博热搜榜,百度热搜榜,抖音热榜,知乎热榜,B站热门,全网热搜,实时热搜,热点聚合,热搜排行,今日热点,全网热点,热榜导航,行恒简安">
+    <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1">
+    <meta name="author" content="行恒简安">
+    <link rel="canonical" href="https://hot.xhja.cn/">
     <meta name="theme-color" content="#eaf1fb">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="行恒简安 · 今日热榜">
+    <meta property="og:locale" content="zh_CN">
+    <meta property="og:title" content="今日热榜 - 全网热搜实时聚合｜微博热搜榜·百度热搜·抖音热榜·知乎热榜">
+    <meta property="og:description" content="实时聚合微博、百度、抖音、知乎、B站、今日头条等平台的公开榜单，每 30 分钟自动更新，一屏纵览全网热点。">
+    <meta property="og:url" content="https://hot.xhja.cn/">
+    <meta property="og:image" content="https://hot.xhja.cn/assets/logo.png">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="今日热榜 - 全网热搜实时聚合">
+    <meta name="twitter:description" content="实时聚合微博、百度、抖音、知乎、B站等平台公开榜单，一屏纵览全网热点。">
+    <meta name="twitter:image" content="https://hot.xhja.cn/assets/logo.png">
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "WebSite",
+          "@id": "https://hot.xhja.cn/#website",
+          "url": "https://hot.xhja.cn/",
+          "name": "今日热榜",
+          "alternateName": ["行恒简安今日热榜", "全网热榜", "全网热搜榜", "今日热榜聚合"],
+          "description": "今日热榜实时聚合微博、百度、抖音、知乎、B站、今日头条等平台的公开榜单，一屏纵览全网热点。",
+          "inLanguage": "zh-CN",
+          "publisher": { "@type": "Organization", "name": "行恒简安", "url": "https://www.xhja.cn/" }
+        }
+      ]
+    }
+    </script>
+    <!--PRERENDER:ITEMLIST-->
     <link rel="icon" href="assets/favicon.ico" sizes="any">
 <link rel="icon" type="image/png" href="assets/favicon-32.png" sizes="32x32">
 <link rel="icon" type="image/png" href="assets/favicon-192.png" sizes="192x192">
@@ -38,7 +71,10 @@
                     </div>
                 </div>
                 <button id="dark-toggle" class="icon-btn" title="切换主题" aria-label="切换主题">🌙</button>
-                <button id="refresh-all" class="btn-ghost-sm" title="重新抓取并刷新全部榜单">
+                <!-- 这个按钮只能重新读取 data/hot.json（带 ?t= 绕过浏览器与边缘缓存），
+                     不能触发服务端重新抓取 —— 抓取由 GitHub Actions 每 30 分钟跑。
+                     原来的 title「重新抓取」是错的，已改准。 -->
+                <button id="refresh-all" class="btn-ghost-sm" title="重新加载最新数据（绕过缓存）">
                     <span class="spin-icon" aria-hidden="true">⟳</span><span class="btn-label">刷新</span>
                 </button>
             </div>
@@ -50,27 +86,29 @@
         <section class="overview">
             <div class="overview-head">
                 <span class="section-tag">TRENDING NOW</span>
-                <h1>全网热点，一屏纵览</h1>
+                <h1>今日热榜 · 全网热点一屏纵览</h1>
                 <p id="overviewSub">正在加载各平台榜单…</p>
             </div>
 
             <div class="toolbar">
-                <div class="search-box">
+                <!-- 全网搜索：结果由搜索引擎给出。原站内筛选（只过滤本页 32 张卡片）
+                     对用户几乎没用，已撤掉；卡片级筛选交给右侧的分类标签。 -->
+                <form class="search-box" id="siteSearch" role="search" method="get"
+                      action="https://www.baidu.com/s" target="_blank" rel="noopener noreferrer"
+                      aria-label="全网搜索">
                     <span class="search-icon" aria-hidden="true">
                         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
                             <circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>
                         </svg>
                     </span>
-                    <input type="text" id="search-input" placeholder="搜索平台或热点关键词…" autocomplete="off" aria-label="搜索">
-                    <button type="button" id="search-clear" class="search-clear" hidden aria-label="清空">×</button>
-                </div>
-
-                <div class="seg" role="tablist" id="kind-tabs">
-                    <button type="button" class="seg-item active" data-kind="all">全部</button>
-                    <button type="button" class="seg-item" data-kind="rank">榜单</button>
-                    <button type="button" class="seg-item" data-kind="news">资讯</button>
-                    <button type="button" class="seg-item" data-kind="community">社区</button>
-                </div>
+                    <input type="text" name="wd" id="search-input" placeholder="搜索全网热点…" autocomplete="off" aria-label="搜索全网热点">
+                    <select id="search-engine" class="se-select" aria-label="切换搜索引擎" title="切换搜索引擎">
+                        <option value="baidu" selected>百度</option>
+                        <option value="bing">必应</option>
+                        <option value="google">谷歌</option>
+                    </select>
+                    <button type="submit" class="se-btn">搜索</button>
+                </form>
 
                 <div class="toolbar-meta">
                     <span class="dot" id="statusDot"></span>
@@ -82,10 +120,14 @@
         <!-- 卡片网格 -->
         <section class="grid-wrap">
             <div class="hot-grid" id="hotGrid"></div>
-            <div class="empty-state" id="emptyState" hidden>
-                <div class="empty-icon">🔍</div>
-                <p>没有匹配的榜单，请更换关键词</p>
-            </div>
+        </section>
+
+        <!-- 榜单导航放在卡片之后：先看内容，再给入口，别把卡片挤到屏幕外。
+             构建期由 scripts/prerender.js 填充链接（内链枢纽）。 -->
+        <section class="boards-foot">
+            <h2 class="foot-title">全部平台热榜 · 点击直达</h2>
+            <nav class="board-nav" id="boardNav" hidden aria-label="全部榜单导航"></nav>
+            <p class="foot-note">今日热榜实时聚合微博热搜榜、百度热搜榜、抖音热榜、知乎热榜、B站热门排行榜、今日头条、腾讯新闻、澎湃新闻、IT之家、36氪、GitHub Trending 等平台的公开榜单，每 30 分钟自动更新一次。</p>
         </section>
     </main>
 
@@ -137,9 +179,6 @@
             <footer class="modal-foot">
                 <span class="modal-time" id="modalTime"></span>
                 <div class="modal-actions">
-                    <button type="button" class="modal-act" id="modalRefresh">
-                        <span class="spin-icon" aria-hidden="true">⟳</span><span>刷新</span>
-                    </button>
                     <a class="modal-act is-primary" id="modalLink" href="#" target="_blank" rel="noopener noreferrer">
                         前往官网<span class="modal-act-arrow" aria-hidden="true">↗</span>
                     </a>

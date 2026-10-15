@@ -277,10 +277,10 @@ main {
 .overview {
     max-width: 1520px;
     margin: 0 auto;
-    padding: 44px 24px 0;
+    padding: 30px 24px 0;
 }
 
-.overview-head { text-align: center; margin-bottom: 30px; }
+.overview-head { text-align: center; margin-bottom: 24px; }
 
 .section-tag {
     display: inline-block;
@@ -367,53 +367,43 @@ main {
 
 .search-box input::placeholder { color: var(--text-muted); }
 
-.search-clear {
+/* 搜索引擎选择 + 提交按钮（原来的站内搜索已换成全网搜索） */
+.se-select {
     flex: 0 0 auto;
-    width: 20px;
-    height: 20px;
-    border-radius: 50%;
-    background: var(--bg-3);
+    height: 28px;
+    padding: 0 2px 0 10px;
+    border: none;
+    border-left: 1px solid var(--border);
+    background: transparent;
     color: var(--text-secondary);
-    font-size: 14px;
-    line-height: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s ease;
-}
-
-.search-clear:hover { background: rgba(66, 144, 245, 0.16); color: var(--primary-dark); }
-
-/* 分段控件 */
-.seg {
-    display: flex;
-    gap: 4px;
-    padding: 4px;
-    border-radius: 999px;
-    background: var(--bg-2);
-    border: 1px solid var(--border);
-    flex: 0 0 auto;
-}
-
-[data-theme="dark"] .seg { background: rgba(10, 17, 30, 0.55); }
-
-.seg-item {
-    padding: 7px 16px;
-    border-radius: 999px;
     font-size: 13px;
-    font-weight: 600;
-    color: var(--text-secondary);
-    transition: all 0.25s ease;
-    white-space: nowrap;
+    cursor: pointer;
+    outline: none;
 }
 
-.seg-item:hover { color: var(--text); }
+.se-select:hover { color: var(--primary-dark); }
+[data-theme="dark"] .se-select:hover { color: var(--primary-light); }
+[data-theme="dark"] .se-select option { background: #0d1524; color: #e8eef8; }
 
-.seg-item.active {
-    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+.se-btn {
+    flex: 0 0 auto;
+    height: 30px;
+    padding: 0 15px;
+    border: none;
+    border-radius: 999px;
+    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
     color: #fff;
-    box-shadow: 0 3px 12px rgba(66, 144, 245, 0.30);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    transition: filter 0.2s ease;
 }
+
+.se-btn:hover { filter: brightness(1.08); }
+
+/* 分类标签（全部/榜单/资讯/社区）已撤掉：它只能在本页 32 张卡片里做粗分类，
+   价值不如卡片本身按关注度排好的顺序。需要按领域浏览走 /boards.html 与 /topic/*。 */
 
 .toolbar-meta {
     display: flex;
@@ -529,21 +519,8 @@ main {
 
 [data-theme="dark"] .card-badge { color: var(--primary-light); background: rgba(90, 160, 255, 0.14); }
 
-.card-refresh {
-    flex: 0 0 auto;
-    width: 26px;
-    height: 26px;
-    border-radius: 7px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--text-muted);
-    font-size: 13px;
-    transition: all 0.2s ease;
-}
-
-.card-refresh:hover { background: rgba(66, 144, 245, 0.10); color: var(--primary-dark); }
-.card-refresh.spin { animation: spin 0.9s linear infinite; }
+/* 卡片上的 ⟳ 与弹窗里的 ⟳ 已撤掉：它们实际刷的是全部榜单而不是那一个，
+   名不副实；只保留页头一个刷新入口。 */
 
 /* 卡片正文：固定展示 10 条（见 app.js 的 CARD_ITEMS），刻意不做卡内滚动 ——
    小框里上下滑极易误点开链接，看全量走卡底「查看全部」弹窗。 */
@@ -1025,8 +1002,6 @@ body.is-locked .site-header { padding-right: var(--lock-gap, 0); }
 
 .modal-act-arrow { font-size: 12px; opacity: 0.9; }
 
-#modalRefresh.busy .spin-icon { animation: spin 0.9s linear infinite; }
-
 /* ===== 悬浮按钮 ===== */
 #scroll-top {
     position: fixed;
@@ -1122,8 +1097,6 @@ body.is-locked .site-header { padding-right: var(--lock-gap, 0); }
     .clock-divider, .clock-meta { display: none; }
 
     .toolbar { gap: 12px; }
-    .seg { order: 3; width: 100%; justify-content: space-between; }
-    .seg-item { flex: 1; text-align: center; padding: 7px 8px; }
 }
 
 @media (max-width: 768px) {
@@ -1195,4 +1168,393 @@ body.is-locked .site-header { padding-right: var(--lock-gap, 0); }
 @media (prefers-reduced-motion: reduce) {
     * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
     html { scroll-behavior: auto; }
+}
+
+/* ============================================================
+   预渲染子页（由 scripts/prerender.js 生成）
+   首页 / 所有子页共用这一份 CSS，这里只做增量补充。
+   ============================================================ */
+
+/* 首页页脚上方的榜单导航区：卡片之后才出现，不抢首屏 */
+.boards-foot {
+    max-width: 1520px;
+    margin: 0 auto;
+    padding: 8px 24px 64px;
+}
+
+.foot-title {
+    margin-bottom: 16px;
+    text-align: center;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-secondary);
+    letter-spacing: 0.5px;
+}
+
+.foot-note {
+    max-width: 900px;
+    margin: 22px auto 0;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 12.5px;
+    line-height: 1.9;
+}
+
+/* ===== 全站榜单导航（首页与子页共用，同时是内链枢纽） ===== */
+.board-nav {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+}
+
+.board-nav a {
+    display: inline-block;
+    padding: 5px 13px;
+    border-radius: 999px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    color: var(--text-secondary);
+    font-size: 13px;
+    line-height: 1.5;
+    transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+}
+
+.board-nav a:hover {
+    color: var(--primary-dark);
+    border-color: var(--border-strong);
+    background: rgba(66, 144, 245, 0.08);
+}
+
+[data-theme="dark"] .board-nav a:hover { color: var(--primary-light); }
+
+.board-nav a.is-current {
+    color: var(--primary-dark);
+    border-color: var(--border-strong);
+    font-weight: 700;
+}
+
+[data-theme="dark"] .board-nav a.is-current { color: var(--primary-light); }
+
+/* ===== 子页布局 ===== */
+.page-wrap {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 30px 24px 70px;
+}
+
+.sub-nav { gap: 8px; }
+
+.sub-nav-link {
+    padding: 6px 13px;
+    border-radius: 999px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    font-size: 13px;
+    white-space: nowrap;
+    transition: color 0.2s ease, border-color 0.2s ease;
+}
+
+.sub-nav-link:hover { color: var(--primary-dark); border-color: var(--border-strong); }
+[data-theme="dark"] .sub-nav-link:hover { color: var(--primary-light); }
+
+.crumbs {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+    margin-bottom: 20px;
+    font-size: 13px;
+    color: var(--text-muted);
+}
+
+.crumbs a { color: var(--text-secondary); }
+.crumbs a:hover { color: var(--primary-dark); }
+.crumbs .sep { margin: 0 4px; opacity: 0.45; }
+
+.board-hero {
+    margin-bottom: 26px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+}
+
+.board-hero h1 {
+    font-size: 30px;
+    font-weight: 800;
+    line-height: 1.35;
+    letter-spacing: 0.5px;
+}
+
+.board-hero .hero-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 16px;
+    margin-top: 10px;
+    font-size: 12.5px;
+    color: var(--text-muted);
+}
+
+.hero-intro {
+    margin-top: 14px;
+    font-size: 14px;
+    line-height: 1.9;
+    color: var(--text-secondary);
+}
+
+/* ===== 榜单列表 ===== */
+.b-list { list-style: none; }
+.b-item { border-bottom: 1px solid var(--border); }
+.b-item:last-child { border-bottom: 0; }
+
+.b-item > a,
+.b-item > div {
+    display: flex;
+    align-items: flex-start;
+    gap: 13px;
+    padding: 13px 12px;
+    border-radius: var(--radius-sm);
+    transition: background 0.2s ease;
+}
+
+.b-item > a:hover { background: var(--row-hover); }
+
+.b-rank {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 8px;
+    background: var(--panel-inset);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    font-size: 12.5px;
+    font-weight: 700;
+}
+
+.b-rank.r1 { background: var(--hot-1); color: #fff; border-color: transparent; }
+.b-rank.r2 { background: var(--hot-2); color: #fff; border-color: transparent; }
+.b-rank.r3 { background: var(--hot-3); color: #fff; border-color: transparent; }
+
+.b-main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+
+.b-title { font-size: 15px; font-weight: 500; line-height: 1.6; color: var(--text); }
+.b-item > a:hover .b-title { color: var(--primary-dark); }
+[data-theme="dark"] .b-item > a:hover .b-title { color: var(--primary-light); }
+
+.b-desc { font-size: 13px; line-height: 1.75; color: var(--text-secondary); }
+.b-from { font-size: 12px; color: var(--text-muted); }
+
+/* 「热 / 新 / 沸」这类角标，跟着标题走 */
+.b-chip {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 0 6px;
+    border-radius: 5px;
+    background: rgba(225, 29, 72, 0.10);
+    color: #e11d48;
+    font-size: 11.5px;
+    line-height: 1.6;
+    vertical-align: 1px;
+}
+
+[data-theme="dark"] .b-chip { background: rgba(255, 138, 154, 0.16); color: #ff8a9a; }
+
+/* 榜单页「关于本榜单」说明块 */
+.board-note {
+    margin-top: 34px;
+    padding: 18px 20px;
+    border-radius: var(--radius-md);
+    background: var(--panel);
+    border: 1px solid var(--border);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+}
+
+.note-list { list-style: none; }
+.note-list li {
+    padding: 6px 0 6px 16px;
+    position: relative;
+    font-size: 13.5px;
+    line-height: 1.8;
+    color: var(--text-secondary);
+}
+.note-list li::before {
+    content: '';
+    position: absolute;
+    left: 2px;
+    top: 15px;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--primary);
+    opacity: 0.55;
+}
+.note-list strong { color: var(--text); font-weight: 700; margin-right: 2px; }
+.note-list a { color: var(--primary-dark); }
+.note-list a:hover { text-decoration: underline; }
+[data-theme="dark"] .note-list a { color: var(--primary-light); }
+
+.b-hot { flex: 0 0 auto; padding-top: 3px; font-size: 12.5px; font-weight: 600; color: #e11d48; }
+[data-theme="dark"] .b-hot { color: #ff8a9a; }
+
+.b-empty { padding: 44px 16px; text-align: center; font-size: 14px; color: var(--text-muted); }
+
+.b-list-slim .b-title { font-size: 14px; }
+
+/* ===== 领域聚合页 ===== */
+.topic-wrap {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(430px, 1fr));
+    gap: 22px;
+}
+
+.topic-src {
+    padding: 6px 12px 8px;
+    border-radius: var(--radius-md);
+    background: var(--panel);
+    border: 1px solid var(--border);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+}
+
+.topic-src-title {
+    margin-bottom: 4px;
+    padding: 12px 4px 8px;
+    border-bottom: 1px solid var(--border);
+    font-size: 15px;
+    font-weight: 700;
+}
+
+.topic-src-title a { color: var(--text); }
+.topic-src-title a:hover { color: var(--primary-dark); }
+
+/* ===== 相关榜单 / 底部导航块 ===== */
+.rel-block, .board-nav-block { margin-top: 40px; }
+
+.rel-title { margin-bottom: 14px; font-size: 15px; font-weight: 700; color: var(--text); }
+
+.rel-grid { display: flex; flex-wrap: wrap; gap: 9px; }
+
+.rel-link {
+    padding: 6px 14px;
+    border-radius: 999px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    font-size: 13.5px;
+    transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+}
+
+.rel-link:hover {
+    color: var(--primary-dark);
+    border-color: var(--border-strong);
+    background: rgba(66, 144, 245, 0.08);
+}
+
+[data-theme="dark"] .rel-link:hover { color: var(--primary-light); }
+
+/* ===== 全部榜单导航页 ===== */
+.board-group { margin-bottom: 34px; }
+
+.group-title {
+    margin-bottom: 14px;
+    padding-left: 11px;
+    border-left: 3px solid var(--primary);
+    font-size: 17px;
+    font-weight: 700;
+}
+
+.board-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 14px;
+}
+
+.board-card {
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    padding: 15px 16px;
+    border-radius: var(--radius-md);
+    background: var(--panel);
+    border: 1px solid var(--border);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    transition: border-color 0.25s ease, transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.board-card:hover {
+    border-color: var(--border-strong);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow);
+}
+
+.board-card-head { display: flex; align-items: center; gap: 9px; }
+
+.board-card-head img {
+    width: 26px;
+    height: 26px;
+    padding: 2px;
+    border-radius: 7px;
+    object-fit: contain;
+    background: var(--panel-inset);
+    border: 1px solid var(--border);
+}
+
+.board-card-name { flex: 1 1 auto; font-size: 14.5px; font-weight: 700; color: var(--text); }
+.board-card-count { font-size: 12px; color: var(--text-muted); }
+.board-card-top { font-size: 12.5px; line-height: 1.7; color: var(--text-secondary); }
+
+/* ===== 使用指南 ===== */
+.guide-body h2 {
+    margin: 30px 0 12px;
+    padding-left: 11px;
+    border-left: 3px solid var(--primary);
+    font-size: 17px;
+    font-weight: 700;
+}
+
+.guide-body p { margin-bottom: 6px; font-size: 14.5px; line-height: 2; color: var(--text-secondary); }
+
+.faq { margin-top: 6px; }
+.faq dt { margin-top: 18px; font-size: 14.5px; font-weight: 700; color: var(--text); }
+.faq dd { margin-top: 6px; font-size: 14px; line-height: 1.9; color: var(--text-secondary); }
+
+/* ===== 归档索引 ===== */
+.day-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+    gap: 12px;
+}
+
+.day-link {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 14px 16px;
+    border-radius: var(--radius-md);
+    background: var(--panel);
+    border: 1px solid var(--border);
+    transition: border-color 0.2s ease, transform 0.2s ease;
+}
+
+.day-link:hover { border-color: var(--border-strong); transform: translateY(-2px); }
+.day-date { font-size: 14.5px; font-weight: 700; color: var(--text); }
+.day-count { font-size: 12.5px; color: var(--text-muted); }
+
+@media (max-width: 768px) {
+    .page-wrap { padding: 20px 16px 50px; }
+    .board-hero h1 { font-size: 23px; }
+    .topic-wrap { grid-template-columns: 1fr; }
+    .board-cards { grid-template-columns: 1fr; }
+    .b-title { font-size: 14.5px; }
+    .sub-nav-link { padding: 5px 10px; font-size: 12.5px; }
+    .boards-foot { padding: 4px 16px 42px; }
+    .board-nav a { padding: 4px 11px; font-size: 12.5px; }
 }

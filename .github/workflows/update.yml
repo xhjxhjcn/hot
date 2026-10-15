@@ -49,10 +49,51 @@ jobs:
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/hot.json
+          git add data/hot.json data/archive
           if git diff --staged --quiet; then
             echo "数据无变化，跳过提交"
           else
             git commit -m "chore: 更新热榜数据 $(date -u '+%Y-%m-%d %H:%M UTC')"
             git push
           fi
+
+      # 主动把 URL 推给 Bing（IndexNow），不必等爬虫自己找过来。
+      # 密钥与 topic 列表都从 scripts/prerender.js 里读，避免两处写死不同步。
+      - name: Ping IndexNow
+        continue-on-error: true
+        run: |
+          # 等 Pages 构建完成再推，否则 Bing 可能抓到尚未上线的 URL
+          sleep 150
+          echo "INDEXNOW_KEY=$(grep -oP "INDEXNOW_KEY = '\K[^']+" scripts/prerender.js)" >> "$GITHUB_ENV"
+          echo "TOPIC_SLUGS=$(grep -oP "slug: '\K[a-z]+" scripts/prerender.js | tr '\n' ' ')" >> "$GITHUB_ENV"
+
+      - name: Submit to IndexNow
+        continue-on-error: true
+        run: |
+          python - <<'PY'
+          import json, os, urllib.request
+
+          key = os.environ['INDEXNOW_KEY']
+          site = 'https://hot.xhja.cn'
+          data = json.load(open('data/hot.json', encoding='utf-8'))
+
+          urls = [f'{site}/', f'{site}/all-hot.html', f'{site}/boards.html', f'{site}/guide.html', f'{site}/today/']
+          urls += [f"{site}/board/{s['key']}.html" for s in data['sources']]
+          urls += [f'{site}/topic/{s}.html' for s in os.environ['TOPIC_SLUGS'].split() if s]
+
+          payload = json.dumps({
+              'host': 'hot.xhja.cn',
+              'key': key,
+              'keyLocation': f'{site}/{key}.txt',
+              'urlList': urls,
+          }).encode('utf-8')
+
+          req = urllib.request.Request(
+              'https://api.indexnow.org/indexnow', data=payload,
+              headers={'Content-Type': 'application/json; charset=utf-8'})
+          try:
+              with urllib.request.urlopen(req, timeout=30) as r:
+                  print(f'IndexNow 已提交 {len(urls)} 个 URL -> HTTP {r.status}')
+          except Exception as e:
+              print(f'IndexNow 提交失败（不影响数据更新）: {e}')
+          PY

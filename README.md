@@ -46,37 +46,92 @@
   （短标签「沸 / 热 / 新」仍与标题同行显示）
 - **详情弹窗**：点「查看全部」在**本页**弹出详情窗口（不跳页、也不把卡片撑高），
   展示该平台的全部条目。三种关闭方式：关闭按钮 / 点遮罩 / 按 `Esc`；
-  弹窗内可单独刷新该榜单、或跳转官网。打开时页面滚动锁定并补偿滚动条宽度，
+  弹窗底部只留「前往官网」。打开时页面滚动锁定并补偿滚动条宽度，
   关闭后焦点交还给触发按钮。手机端（≤640px）自动改成从底部升起的抽屉。
   动效：遮罩淡入淡出 + 面板回弹（`cubic-bezier(.16,1,.3,1)`）+ 条目错峰上浮
   （延迟 `--i * 16ms`，封顶 18 档）。
-- **搜索**：按平台名 / 徽标 / 标题关键词过滤，命中条目会单独列出。
+- **搜索**：页头搜索框是**全网搜索**，直接提交给搜索引擎（百度 / 必应 / 谷歌可切，
+  选择记在 localStorage），不做站内过滤 —— 站内只能在本页 32 张卡片里找，
+  对用户价值太低，已撤掉。
+- **刷新**：全站只有页头一个刷新入口。它带 `?t=` 重新拉一次 `data/hot.json`，
+  绕过浏览器与边缘缓存；**不能**触发服务端重新抓取（抓取由 Actions 定时跑）。
+  卡片与弹窗上原本各有一个 ⟳，实际刷的都是全部榜单而非那一个，已删除。
+- **分类标签**（全部 / 榜单 / 资讯 / 社区）已撤掉：只是粗分类，价值不如卡片
+  本身按关注度排好的顺序。按领域浏览走 `/boards.html` 与 `/topic/*`。
 - **分类**：全部 / 榜单 / 资讯 / 社区。
 - **页眉**：实时时钟 + 农历、快速定位到指定平台、深浅色主题切换（记忆在 localStorage）。
 
 ## 目录结构
 
 ```
-├── index.html                  页面骨架
+├── index.html                  首页「模板」——构建期由 prerender 填充后写入 dist/
 ├── assets/
-│   ├── style.css               设计系统（浅蓝渐变 + 毛玻璃 + 深色模式）
-│   ├── app.js                  数据加载、卡片渲染、搜索筛选、主题
+│   ├── style.css               设计系统（浅蓝渐变 + 毛玻璃 + 深色模式）+ 子页样式
+│   ├── app.js                  数据加载、卡片渲染、全网搜索框、主题
 │   ├── lunar.js / lunar-data.js 轻量农历（顶部时钟用）
 │   └── logo.png                行恒简安 logo
 ├── data/
 │   ├── hot.json                抓取产物（由 Actions 自动更新，勿手改）
+│   ├── archive/                每日快照（每天一份，保留 90 天，不发布到站点）
 │   └── config.json             备案号等站点配置
 ├── logos/                      各平台图标
 ├── scripts/
 │   ├── fetch_hot.py            抓取器（零依赖，仅标准库）
+│   ├── prerender.js            预渲染：生成全部静态页面、sitemap、IndexNow 文件
+│   ├── verify_seo.py           构建产物自检（标签配平 / 内链 / sitemap / 内容量）
+│   ├── dispatch_hot.py         ECS 侧 dispatch 脚本的版本源（见「更新频率」）
 │   └── probe.py                单源调试工具（定位接口 / 修正正则）
-├── build-dist.js               构建脚本：把站点复制到 dist/（ESA 发布目录）
+├── build-dist.js               构建脚本：复制静态资源 → 调 prerender → 输出 dist/
 ├── package.json                仅提供 build 脚本，无任何依赖
-├── .github/workflows/update.yml 定时抓取
+├── .github/workflows/update.yml 定时抓取 + IndexNow 推送
 └── esa.jsonc / edgeone.json    部署配置
 ```
 
 `dist/` 是构建产物（已进 `.gitignore`），不提交到仓库。
+
+## SEO：为什么首页是「模板」而不是成品
+
+站点原本是纯前端渲染：`index.html` 里只有一个空的 `#hotGrid`，32 个榜单全靠 `app.js`
+拉 `data/hot.json` 后注入。爬虫不执行 JS，读到的正文只有 176 个字符，全站也只有一个
+可索引 URL —— 搜索「今日热榜」能排在 7~8 位，但任何长尾词（微博热搜榜、抖音热榜…）
+都进不来。
+
+改法是**构建期预渲染**：`build-dist.js` 复制完静态资源后调用 `scripts/prerender.js`，
+把 `data/hot.json` 的内容直接写进 HTML。产物：
+
+| 路径 | 内容 | 主攻词 |
+|---|---|---|
+| `/` | 32 张榜单卡片（首屏即可见，非骨架屏） | 今日热榜、全网热榜 |
+| `/board/<key>.html` × 32 | 单平台完整榜单 | 微博热搜榜、抖音热榜、知乎热榜… |
+| `/topic/<slug>.html` × 10 | 领域聚合（科技 / 程序员 / 新闻 / 娱乐…） | 科技热榜、程序员热榜 |
+| `/all-hot.html` | 跨平台按热度合并去重的前 100 条 | 全网热搜榜、实时热搜 |
+| `/boards.html` | 全部榜单导航（内链枢纽） | 热榜导航、热搜榜大全 |
+| `/guide.html` | 使用指南 + FAQ（带 FAQPage 结构化数据） | 今日热榜怎么用、找选题 |
+| `/today/<日期>.html` | 每日快照归档 | 10 月 15 日热榜 |
+| `/sitemap.xml` | 上面全部的索引 | — |
+
+三个必须知道的约束：
+
+1. **不要往 `build-dist.js` 的 `FILES` 里加 `index.html`**。它是模板，不是产物；
+   直接复制会把预渲染结果覆盖成空壳。
+2. **`index.html` 里的锚点是契约**。`prerender.js` 按精确字符串替换
+   `#overviewSub` / `#hotGrid` / `#footerLinks` / `#footerBeian` / `#boardNav` /
+   `<!--PRERENDER:ITEMLIST-->`，改模板时这些锚点必须原样保留，否则构建会直接报错
+   （这是故意的，宁可构建失败也不要静默产出空壳）。
+3. **卡片的预渲染标记要和 `app.js` 的 `cardHTML()` 保持一致**。用户首屏看到的是
+   预渲染 DOM，`app.js` 拉完数据后会原地重渲染一遍，结构不同就会跳版。
+   卡片标记在 `app.js` 与 `prerender.js` 里**各有一份**，改一处必须改另一处。
+
+日常校验：
+
+```bash
+npm run build                                    # 复制 + 预渲染
+python scripts/verify_seo.py                     # 产物自检，全绿才算过
+```
+
+IndexNow 的密钥写在 `prerender.js` 的 `INDEXNOW_KEY`，构建时生成同名的
+`dist/<key>.txt` 供 Bing 校验；Actions 在推送数据后读同一个常量 POST 给
+`api.indexnow.org`，让 Bing 主动来抓，而不是等爬虫自己发现。
 
 ## 本地开发
 

@@ -24,8 +24,10 @@ const ROOT = __dirname;
 const DIST = path.join(ROOT, 'dist');
 
 // 需要发布到站点的内容（scripts/ 和 .github/ 属于仓库基建，不发布）
+// 注意：index.html 不在这个列表里 —— 它由 prerender 预渲染后写入 dist/。
+// 直接复制会把「空壳版」index.html 盖到预渲染结果上，爬虫又什么都读不到。
 const FILES = [
-  'favicon.ico','index.html', 'robots.txt'];
+  'favicon.ico', 'robots.txt'];
 const DIRS = ['assets', 'data', 'logos'];
 
 function main() {
@@ -62,7 +64,12 @@ function main() {
       console.warn(`  [skip] 缺少目录 ${d}/`);
       continue;
     }
-    fs.cpSync(src, path.join(DIST, d), { recursive: true });
+    // data/archive 只在构建期被预渲染读取，产物是 /today/*.html。
+    // 快照本身不进 dist —— 否则每天都在往部署里塞几十 KB 的原始 JSON。
+    const filter = d === 'data'
+      ? (p) => path.basename(p) !== 'archive'
+      : undefined;
+    fs.cpSync(src, path.join(DIST, d), { recursive: true, filter });
     for (const name of fs.readdirSync(src)) {
       const p = path.join(src, name);
       if (fs.statSync(p).isFile()) tally(p);
@@ -71,13 +78,24 @@ function main() {
   }
 
   console.log(
-    `\n构建完成 -> dist/  ${count} 个文件, ${(bytes / 1024).toFixed(0)} KB`
+    `\n静态资源复制完成  ${count} 个文件, ${(bytes / 1024).toFixed(0)} KB`
   );
+
+  // ---- 预渲染：把 data/hot.json 的内容静态写进 HTML ----
+  console.log('\n开始预渲染（SEO）：');
+  const prerender = require('./scripts/prerender.js');
+  prerender.run({ root: ROOT, dist: DIST });
 
   // 兜底自检：index.html 必须在，否则站点会 404
   if (!fs.existsSync(path.join(DIST, 'index.html'))) {
     console.error('构建失败：dist/index.html 不存在');
     process.exit(1);
+  }
+  for (const f of ['sitemap.xml', 'boards.html', 'all-hot.html', 'guide.html']) {
+    if (!fs.existsSync(path.join(DIST, f))) {
+      console.error(`构建失败：dist/${f} 不存在（预渲染未生效）`);
+      process.exit(1);
+    }
   }
 }
 
