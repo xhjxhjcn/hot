@@ -77,9 +77,9 @@ jobs:
           site = 'https://hot.xhja.cn'
           data = json.load(open('data/hot.json', encoding='utf-8'))
 
-          urls = [f'{site}/', f'{site}/all-hot.html', f'{site}/boards.html', f'{site}/guide.html', f'{site}/today/']
-          urls += [f"{site}/board/{s['key']}.html" for s in data['sources']]
-          urls += [f'{site}/topic/{s}.html' for s in os.environ['TOPIC_SLUGS'].split() if s]
+          urls = [f'{site}/', f'{site}/all-hot', f'{site}/boards', f'{site}/guide', f'{site}/today/']
+          urls += [f"{site}/board/{s['key']}" for s in data['sources']]
+          urls += [f'{site}/topic/{s}' for s in os.environ['TOPIC_SLUGS'].split() if s]
 
           payload = json.dumps({
               'host': 'hot.xhja.cn',

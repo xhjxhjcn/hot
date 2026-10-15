@@ -1,5 +1,6 @@
 User-agent: *
 Allow: /
 
-# 单平台榜单：/board/<平台>.html ｜ 领域热榜：/topic/<领域>.html
+# 单平台榜单：/board/<平台> ｜ 领域热榜：/topic/<领域>
+# 注意：本站由阿里云 ESA 托管，开启了「自动去除 .html」，对外地址一律不带后缀
 Sitemap: https://hot.xhja.cn/sitemap.xml

@@ -33,6 +33,26 @@ MIN_PAGE_TEXT = 600
 # 天然就短的列表页（内容随数据积累增长，不该按薄内容报错）
 THIN_OK = {'today/index.html'}
 
+# 托管方（阿里云 ESA Pages）开了「自动去除 .html」：对外地址不带后缀。
+# 见 scripts/prerender.js 顶部的说明。
+STRIP_HTML = True
+
+
+def resolve(url_path):
+    """把站内 URL 路径映射到 dist 里的实际文件。
+
+    对外地址是不带 .html 的（ESA 会 307 掉 .html），而磁盘上仍是 xxx.html，
+    所以这里要按「原样 / 补 index.html / 补 .html」依次试。
+    """
+    rel = url_path.lstrip('/')
+    if not rel or rel.endswith('/'):
+        rel += 'index.html'
+    for cand in (rel, rel + '.html'):
+        full = os.path.join(DIST, cand.replace('/', os.sep))
+        if os.path.exists(full):
+            return full
+    return None
+
 
 class TagBalance(HTMLParser):
     def __init__(self):
@@ -113,10 +133,11 @@ def main():
 
         for href in re.findall(r'href="(/[^"#?]*)"', html):
             internal += 1
-            target = href.lstrip('/')
-            if target.endswith('/'):
-                target += 'index.html'
-            if not os.path.exists(os.path.join(DIST, target)):
+            if STRIP_HTML and href.endswith('.html'):
+                # 托管方会把 /x.html 307 到 /x，站内链接必须直接写 /x，
+                # 否则每条内链都白吃一跳、还浪费爬虫预算。
+                problems.append(f'{rel}: 站内链接带 .html（会 307）-> {href}')
+            if resolve(href) is None:
                 problems.append(f'{rel}: 站内链接 404 -> {href}')
 
     # 首页预渲染
@@ -143,11 +164,17 @@ def main():
         locs = re.findall(r'<loc>(.*?)</loc>', sm)
         from urllib.parse import urlparse
         for loc in locs:
-            rel = urlparse(loc).path.lstrip('/') or 'index.html'
-            if rel.endswith('/'):
-                rel += 'index.html'
-            if not os.path.exists(os.path.join(DIST, rel)):
+            p = urlparse(loc).path
+            if STRIP_HTML and p.endswith('.html'):
+                problems.append(f'sitemap 里是带 .html 的重定向地址: {loc}')
+            if resolve(p) is None:
                 problems.append(f'sitemap 指向缺失页面: {loc}')
+
+        # canonical 也必须与 sitemap 用同一套地址，否则搜索引擎会当成两套
+        for rel, full in pages:
+            hm = re.search(r'<link rel="canonical" href="([^"]+)"', open(full, encoding='utf-8').read())
+            if hm and STRIP_HTML and urlparse(hm.group(1)).path.endswith('.html'):
+                problems.append(f'{rel}: canonical 带 .html（会 307）-> {hm.group(1)}')
 
     sizes.sort()
     print(f'HTML 页面数  : {len(pages)}  ｜ sitemap 条目: {len(locs)}  ｜ 站内链接: {internal}')

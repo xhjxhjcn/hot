@@ -9,9 +9,9 @@
  *
  * 本脚本从 data/hot.json 生成整套静态页面：
  *   dist/index.html              首页（榜单卡片预渲染进 #hotGrid）
- *   dist/boards.html             全部榜单导航（热榜大全 / 热榜导航）
- *   dist/all-hot.html            全网热搜总榜（跨平台按热度合并排序）
- *   dist/guide.html              使用指南 + FAQ（覆盖使用意图词）
+ *   dist/boards.html             全部榜单导航（热榜大全 / 热榜导航）→ 对外地址 /boards
+ *   dist/all-hot.html            全网热搜总榜（跨平台按热度合并排序）→ /all-hot
+ *   dist/guide.html              使用指南 + FAQ（覆盖使用意图词）→ /guide
  *   dist/board/<key>.html   ×N   单平台榜单页（微博热搜榜 / 抖音热榜 …）
  *   dist/topic/<slug>.html  ×N   领域聚合页（科技热榜 / 程序员热榜 …）
  *   dist/today/<日期>.html  ×N   每日归档（日期类长尾词）
@@ -34,6 +34,14 @@ const path = require('path');
 /* ------------------------------------------------------------------ */
 
 const SITE = 'https://hot.xhja.cn';
+/* ⚠ 对外地址一律不带 .html。
+   阿里云 ESA 的 Pages 开了「自动去除 .html」：访问 /boards.html 会 307 跳到
+   /boards，而 /boards 直接 200。所以 canonical / sitemap / 站内链接 / JSON-LD
+   里的 URL 全部用不带后缀的形式，否则每个链接都白吃一跳、sitemap 还会塞满
+   重定向地址。dist/ 里的文件仍按 .html 落盘 —— 旧索引过的 .html 地址靠平台
+   自身的 307 照样能进。
+   目录型页面保留结尾斜杠：/today 会 307 到 /today/。
+   如果哪天托管方关掉这个特性，这里要整体改回带 .html 的形式。 */
 const BRAND = '行恒简安';
 const PORTAL = 'https://www.xhja.cn';
 const SITE_NAME = '今日热榜';
@@ -399,7 +407,7 @@ function beianHTML(cfg) {
 function boardNavHTML(sources, currentKey) {
     const links = sources.map((s) => {
         const cls = s.key === currentKey ? ' class="is-current"' : '';
-        return `<a href="/board/${esc(s.key)}.html"${cls}>${esc(boardName(s))}</a>`;
+        return `<a href="/board/${esc(s.key)}"${cls}>${esc(boardName(s))}</a>`;
     }).join('');
     return links;
 }
@@ -466,9 +474,9 @@ function shell(opts) {
                 </div>
             </a>
             <div class="header-actions sub-nav">
-                <a class="sub-nav-link" href="/boards.html">全部榜单</a>
-                <a class="sub-nav-link" href="/all-hot.html">全网热搜总榜</a>
-                <a class="sub-nav-link" href="/guide.html">使用指南</a>
+                <a class="sub-nav-link" href="/boards">全部榜单</a>
+                <a class="sub-nav-link" href="/all-hot">全网热搜总榜</a>
+                <a class="sub-nav-link" href="/guide">使用指南</a>
             </div>
         </div>
     </header>
@@ -591,7 +599,7 @@ function indexItemListLD(sources) {
                 '@type': 'ListItem',
                 position: i + 1,
                 name: boardName(s),
-                url: `${SITE}/board/${s.key}.html`,
+                url: `${SITE}/board/${s.key}`,
             })),
         },
     };
@@ -636,10 +644,10 @@ function renderBoard(s, sources, cfg, updated) {
 
     const watch = sources.filter((x) => x.key !== s.key).slice(0, 8);
     const related = `<div class="rel-grid">${[
-        ...TOPICS.filter((t) => t.keys.includes(s.key)).map((t) => `<a class="rel-link" href="/topic/${t.slug}.html">${esc(t.h1)}</a>`),
-        ...watch.map((x) => `<a class="rel-link" href="/board/${x.key}.html">${esc(boardName(x))}</a>`),
-        '<a class="rel-link" href="/all-hot.html">全网热搜总榜</a>',
-        '<a class="rel-link" href="/boards.html">全部榜单</a>',
+        ...TOPICS.filter((t) => t.keys.includes(s.key)).map((t) => `<a class="rel-link" href="/topic/${t.slug}">${esc(t.h1)}</a>`),
+        ...watch.map((x) => `<a class="rel-link" href="/board/${x.key}">${esc(boardName(x))}</a>`),
+        '<a class="rel-link" href="/all-hot">全网热搜总榜</a>',
+        '<a class="rel-link" href="/boards">全部榜单</a>',
     ].join('')}</div>`;
 
     const noteHTML = `<section class="board-note">
@@ -649,7 +657,7 @@ function renderBoard(s, sources, cfg, updated) {
             <li><strong>更新频率</strong>：每 30 分钟自动抓取一次，本页快照取自 ${esc(absTime(updated))}</li>
             <li><strong>同义搜索</strong>：${aliases.map(esc).join('、')}</li>
             <li><strong>当前收录</strong>：${items.length} 条，按原站热度排序</li>
-            <li><strong>本站范围</strong>：共聚合 ${sources.length} 个平台公开榜单，见<a href="/boards.html">全部热榜榜单导航</a></li>
+            <li><strong>本站范围</strong>：共聚合 ${sources.length} 个平台公开榜单，见<a href="/boards">全部热榜榜单导航</a></li>
         </ul>
     </section>`;
 
@@ -661,9 +669,9 @@ function renderBoard(s, sources, cfg, updated) {
         title,
         desc: `${name}（${aliases.slice(0, 3).join('、')}）实时更新，当前收录 ${items.length} 条。${desc}`.slice(0, 210),
         keywords,
-        canonical: `${SITE}/board/${s.key}.html`,
+        canonical: `${SITE}/board/${s.key}`,
         h1: name,
-        crumbs: [{ text: '全部榜单', href: '/boards.html' }, { text: name }],
+        crumbs: [{ text: '全部榜单', href: '/boards' }, { text: name }],
         intro,
         body: listHTML + noteHTML,
         related,
@@ -672,10 +680,10 @@ function renderBoard(s, sources, cfg, updated) {
             {
                 '@context': 'https://schema.org',
                 '@type': 'ItemList',
-                '@id': `${SITE}/board/${s.key}.html#list`,
+                '@id': `${SITE}/board/${s.key}#list`,
                 name,
                 description: desc,
-                url: `${SITE}/board/${s.key}.html`,
+                url: `${SITE}/board/${s.key}`,
                 numberOfItems: items.length,
                 itemListOrder: 'https://schema.org/ItemListOrderDescending',
                 itemListElement: items.slice(0, 30).map((it, i) => ({
@@ -690,8 +698,8 @@ function renderBoard(s, sources, cfg, updated) {
                 '@type': 'BreadcrumbList',
                 itemListElement: [
                     { '@type': 'ListItem', position: 1, name: '首页', item: SITE + '/' },
-                    { '@type': 'ListItem', position: 2, name: '全部榜单', item: SITE + '/boards.html' },
-                    { '@type': 'ListItem', position: 3, name, item: `${SITE}/board/${s.key}.html` },
+                    { '@type': 'ListItem', position: 2, name: '全部榜单', item: SITE + '/boards' },
+                    { '@type': 'ListItem', position: 3, name, item: `${SITE}/board/${s.key}` },
                 ],
             },
         ],
@@ -713,7 +721,7 @@ function renderTopic(t, sources, cfg, updated) {
         const items = (s.items || []).slice(0, 12);
         if (!items.length) return '';
         return `<section class="topic-src">
-            <h3 class="topic-src-title"><a href="/board/${s.key}.html">${esc(boardName(s))}</a></h3>
+            <h3 class="topic-src-title"><a href="/board/${s.key}">${esc(boardName(s))}</a></h3>
             <ol class="b-list b-list-slim">${items.map((it, i) => {
                 const rankCls = i < 3 ? ` r${i + 1}` : '';
                 const hot = fmtHot(it.hot);
@@ -731,17 +739,17 @@ function renderTopic(t, sources, cfg, updated) {
     const keywords = [t.h1, ...t.aliases, SITE_NAME, '全网热榜', '热搜榜', BRAND].join(',');
 
     const related = `<div class="rel-grid">${[
-        ...picked.map((s) => `<a class="rel-link" href="/board/${s.key}.html">${esc(boardName(s))}</a>`),
-        ...TOPICS.filter((x) => x.slug !== t.slug).map((x) => `<a class="rel-link" href="/topic/${x.slug}.html">${esc(x.h1)}</a>`),
+        ...picked.map((s) => `<a class="rel-link" href="/board/${s.key}">${esc(boardName(s))}</a>`),
+        ...TOPICS.filter((x) => x.slug !== t.slug).map((x) => `<a class="rel-link" href="/topic/${x.slug}">${esc(x.h1)}</a>`),
     ].join('')}</div>`;
 
     return shell({
         title,
         desc: `${t.h1}实时更新，聚合 ${picked.map((s) => s.label).join('、')} 等 ${picked.length} 个平台的${t.aliases[0]}内容，共 ${all.length} 条热点。${t.desc}`.slice(0, 210),
         keywords,
-        canonical: `${SITE}/topic/${t.slug}.html`,
+        canonical: `${SITE}/topic/${t.slug}`,
         h1: t.h1,
-        crumbs: [{ text: '全部榜单', href: '/boards.html' }, { text: t.h1 }],
+        crumbs: [{ text: '全部榜单', href: '/boards' }, { text: t.h1 }],
         intro: `${esc(t.desc)} 当前聚合 ${picked.length} 个平台、${all.length} 条热点，数据每 30 分钟自动更新。`,
         body: `<div class="topic-wrap">${perSource}</div>`,
         related,
@@ -749,10 +757,10 @@ function renderTopic(t, sources, cfg, updated) {
         ld: {
             '@context': 'https://schema.org',
             '@type': 'CollectionPage',
-            '@id': `${SITE}/topic/${t.slug}.html`,
+            '@id': `${SITE}/topic/${t.slug}`,
             name: t.h1,
             description: t.desc,
-            url: `${SITE}/topic/${t.slug}.html`,
+            url: `${SITE}/topic/${t.slug}`,
             isPartOf: { '@id': SITE + '/#website' },
             mainEntity: {
                 '@type': 'ItemList',
@@ -760,7 +768,7 @@ function renderTopic(t, sources, cfg, updated) {
                 numberOfItems: picked.length,
                 itemListElement: picked.map((s, i) => ({
                     '@type': 'ListItem', position: i + 1,
-                    name: boardName(s), url: `${SITE}/board/${s.key}.html`,
+                    name: boardName(s), url: `${SITE}/board/${s.key}`,
                 })),
             },
         },
@@ -806,19 +814,19 @@ function renderAllHot(sources, cfg, updated) {
         title,
         desc,
         keywords: ['全网热搜榜', '全网热榜', '实时热搜', '热搜排行', '热点排行榜', '热搜榜实时', '全网热点', SITE_NAME, BRAND].join(','),
-        canonical: `${SITE}/all-hot.html`,
+        canonical: `${SITE}/all-hot`,
         h1,
-        crumbs: [{ text: '全部榜单', href: '/boards.html' }, { text: h1 }],
+        crumbs: [{ text: '全部榜单', href: '/boards' }, { text: h1 }],
         intro: `全网热搜榜把微博、百度、抖音、知乎、今日头条等 ${sources.length} 个平台的热搜条目按热度统一合并排序，去掉跨平台重复内容，得到同一时刻的全网热搜排行。当前共收录 ${merged.length} 条，展示热度最高的 100 条。`,
         body: listHTML,
-        related: `<div class="rel-grid"><a class="rel-link" href="/boards.html">全部榜单</a><a class="rel-link" href="/topic/society.html">社会热点榜</a><a class="rel-link" href="/topic/ent.html">娱乐热搜榜</a><a class="rel-link" href="/topic/news.html">新闻热点榜</a><a class="rel-link" href="/guide.html">使用指南</a></div>`,
+        related: `<div class="rel-grid"><a class="rel-link" href="/boards">全部榜单</a><a class="rel-link" href="/topic/society">社会热点榜</a><a class="rel-link" href="/topic/ent">娱乐热搜榜</a><a class="rel-link" href="/topic/news">新闻热点榜</a><a class="rel-link" href="/guide">使用指南</a></div>`,
         lastmod: absTime(updated),
         ld: {
             '@context': 'https://schema.org',
             '@type': 'ItemList',
             name: h1,
             description: desc,
-            url: `${SITE}/all-hot.html`,
+            url: `${SITE}/all-hot`,
             numberOfItems: top.length,
             itemListOrder: 'https://schema.org/ItemListOrderDescending',
             itemListElement: top.slice(0, 50).map((it, i) => ({
@@ -847,7 +855,7 @@ function renderBoards(sources, cfg, updated) {
             if (!s) return '';
             const n = (s.items || []).length;
             const top3 = (s.items || []).slice(0, 3).map((it) => esc(it.title)).join(' · ');
-            return `<a class="board-card" href="/board/${esc(s.key)}.html">
+            return `<a class="board-card" href="/board/${esc(s.key)}">
                 <span class="board-card-head">
                     <img src="/${esc(s.icon)}" alt="" loading="lazy" width="28" height="28">
                     <span class="board-card-name">${esc(boardName(s))}</span>
@@ -860,7 +868,7 @@ function renderBoards(sources, cfg, updated) {
     }).join('');
 
     const topicHTML = `<section class="board-group"><h2 class="group-title">按领域看热榜</h2><div class="rel-grid">${
-        TOPICS.map((t) => `<a class="rel-link" href="/topic/${t.slug}.html">${esc(t.h1)}</a>`).join('')
+        TOPICS.map((t) => `<a class="rel-link" href="/topic/${t.slug}">${esc(t.h1)}</a>`).join('')
     }</div></section>`;
 
     const h1 = '全部热榜榜单导航';
@@ -870,23 +878,23 @@ function renderBoards(sources, cfg, updated) {
         title: `全部热榜榜单导航 - 热搜榜大全 | ${SITE_NAME}`,
         desc,
         keywords: ['热榜导航', '热搜导航', '热榜大全', '全部热榜', '各平台热搜榜', '全网热榜', '热搜榜大全', SITE_NAME, BRAND].join(','),
-        canonical: `${SITE}/boards.html`,
+        canonical: `${SITE}/boards`,
         h1,
         crumbs: [{ text: h1 }],
         intro: `这里收录本站聚合的全部 ${sources.length} 个平台热榜入口，按综合热搜、新闻资讯、视频榜单、科技开发、社区兴趣五类归组。点击任意条目进入对应平台的热榜页面，实时查看该平台的最新排名。`,
         body: body + topicHTML,
-        related: `<div class="rel-grid"><a class="rel-link" href="/all-hot.html">全网热搜总榜</a><a class="rel-link" href="/guide.html">使用指南</a></div>`,
+        related: `<div class="rel-grid"><a class="rel-link" href="/all-hot">全网热搜总榜</a><a class="rel-link" href="/guide">使用指南</a></div>`,
         lastmod: absTime(updated),
         ld: {
             '@context': 'https://schema.org',
             '@type': 'CollectionPage',
-            name: h1, description: desc, url: `${SITE}/boards.html`,
+            name: h1, description: desc, url: `${SITE}/boards`,
             mainEntity: {
                 '@type': 'ItemList',
                 numberOfItems: sources.length,
                 itemListElement: sources.map((s, i) => ({
                     '@type': 'ListItem', position: i + 1,
-                    name: boardName(s), url: `${SITE}/board/${s.key}.html`,
+                    name: boardName(s), url: `${SITE}/board/${s.key}`,
                 })),
             },
         },
@@ -934,12 +942,12 @@ function renderGuide(sources, cfg, updated) {
         title: `${h1} - 怎么用热榜找选题、追热点 | ${SITE_NAME}`,
         desc,
         keywords: ['今日热榜怎么用', '热榜找选题', '追热点工具', '自媒体选题', '舆情监测', '热点聚合站', '热搜榜使用', SITE_NAME, BRAND].join(','),
-        canonical: `${SITE}/guide.html`,
+        canonical: `${SITE}/guide`,
         h1,
         crumbs: [{ text: h1 }],
         intro: `本站聚合 ${sources.length} 个平台的实时热榜。这份指南说明不同角色怎么把它用起来：自媒体找选题、运营追热点、品牌做舆情监测、开发者跟技术趋势。`,
         body,
-        related: `<div class="rel-grid"><a class="rel-link" href="/boards.html">全部榜单</a><a class="rel-link" href="/all-hot.html">全网热搜总榜</a></div>`,
+        related: `<div class="rel-grid"><a class="rel-link" href="/boards">全部榜单</a><a class="rel-link" href="/all-hot">全网热搜总榜</a></div>`,
         lastmod: absTime(updated),
         ld: [
             {
@@ -956,7 +964,7 @@ function renderGuide(sources, cfg, updated) {
                 '@type': 'BreadcrumbList',
                 itemListElement: [
                     { '@type': 'ListItem', position: 1, name: '首页', item: SITE + '/' },
-                    { '@type': 'ListItem', position: 2, name: h1, item: SITE + '/guide.html' },
+                    { '@type': 'ListItem', position: 2, name: h1, item: SITE + '/guide' },
                 ],
             },
         ],
@@ -975,7 +983,7 @@ function renderDay(snapshot, sources, cfg) {
         const items = s.items || [];
         if (!items.length) return '';
         return `<section class="topic-src">
-            <h3 class="topic-src-title"><a href="/board/${s.key}.html">${esc(boardName(src))}</a></h3>
+            <h3 class="topic-src-title"><a href="/board/${s.key}">${esc(boardName(src))}</a></h3>
             <ol class="b-list b-list-slim">${items.map((it, i) => {
                 const rankCls = i < 3 ? ` r${i + 1}` : '';
                 const hot = fmtHot(it.hot);
@@ -994,17 +1002,17 @@ function renderDay(snapshot, sources, cfg) {
         title,
         desc,
         keywords: [`${label}热榜`, `${label}热搜`, '今日热榜', '热榜回顾', '当天热点', '历史热榜', SITE_NAME, BRAND].join(','),
-        canonical: `${SITE}/today/${date}.html`,
+        canonical: `${SITE}/today/${date}`,
         h1,
         crumbs: [{ text: '今日热榜归档', href: '/today/' }, { text: label }],
         intro: `${label}当天全网热点汇总，数据抓取于 ${esc(snapshot.updated)}。涵盖 ${picks.length} 个平台的榜单快照，共 ${picks.reduce((n, s) => n + (s.items || []).length, 0)} 条热点。`,
         body,
-        related: `<div class="rel-grid"><a class="rel-link" href="/today/">热榜归档索引</a><a class="rel-link" href="/boards.html">全部榜单</a><a class="rel-link" href="/all-hot.html">全网热搜总榜</a></div>`,
+        related: `<div class="rel-grid"><a class="rel-link" href="/today/">热榜归档索引</a><a class="rel-link" href="/boards">全部榜单</a><a class="rel-link" href="/all-hot">全网热搜总榜</a></div>`,
         lastmod: `${date}`,
         ld: {
             '@context': 'https://schema.org',
             '@type': 'CollectionPage',
-            name: h1, description: desc, url: `${SITE}/today/${date}.html`,
+            name: h1, description: desc, url: `${SITE}/today/${date}`,
             datePublished: date,
         },
         cfg, sources, currentKey: null,
@@ -1013,7 +1021,7 @@ function renderDay(snapshot, sources, cfg) {
 
 function renderTodayIndex(days, sources, cfg) {
     const h1 = '今日热榜归档';
-    const list = days.map((d) => `<a class="day-link" href="/today/${d.date}.html"><span class="day-date">${esc(d.label)}</span><span class="day-count">${d.count} 条热点</span></a>`).join('');
+    const list = days.map((d) => `<a class="day-link" href="/today/${d.date}"><span class="day-date">${esc(d.label)}</span><span class="day-count">${d.count} 条热点</span></a>`).join('');
     const desc = `今日热榜历史归档索引，按日期保存每天的全网热搜与热点榜单快照，共 ${days.length} 天记录，可回看任意一天的全网热点。`;
 
     const body = `${list ? `<div class="day-list">${list}</div>` : '<div class="b-empty">归档正在积累中，每天会新增一份当日快照。</div>'}
@@ -1032,7 +1040,7 @@ function renderTodayIndex(days, sources, cfg) {
         crumbs: [{ text: h1 }],
         intro: `这里按日期保存每天的全网热点快照，共 ${days.length} 天。点进任意一天可以回看当天的微博热搜、百度热搜、抖音热榜与知乎热榜等全部榜单内容。`,
         body,
-        related: `<div class="rel-grid"><a class="rel-link" href="/boards.html">全部榜单</a><a class="rel-link" href="/all-hot.html">全网热搜总榜</a></div>`,
+        related: `<div class="rel-grid"><a class="rel-link" href="/boards">全部榜单</a><a class="rel-link" href="/all-hot">全网热搜总榜</a></div>`,
         lastmod: days.length ? days[0].date : '',
         ld: {
             '@context': 'https://schema.org',
@@ -1043,7 +1051,7 @@ function renderTodayIndex(days, sources, cfg) {
                 numberOfItems: days.length,
                 itemListElement: days.slice(0, 50).map((d, i) => ({
                     '@type': 'ListItem', position: i + 1, name: `${d.label}今日热榜`,
-                    url: `${SITE}/today/${d.date}.html`,
+                    url: `${SITE}/today/${d.date}`,
                 })),
             },
         },
@@ -1063,13 +1071,13 @@ function renderSitemap(days, sources, updated) {
         `  <url>\n    <loc>${loc}</loc>\n    <lastmod>${mod}</lastmod>\n    <changefreq>${freq}</changefreq>\n    <priority>${prio}</priority>\n  </url>`);
 
     add(`${SITE}/`, 'hourly', '1.0', lastmod);
-    add(`${SITE}/all-hot.html`, 'hourly', '0.9', lastmod);
-    add(`${SITE}/boards.html`, 'daily', '0.9', lastmod);
-    for (const s of sources) add(`${SITE}/board/${s.key}.html`, 'hourly', '0.8', lastmod);
-    for (const t of TOPICS) add(`${SITE}/topic/${t.slug}.html`, 'hourly', '0.7', lastmod);
+    add(`${SITE}/all-hot`, 'hourly', '0.9', lastmod);
+    add(`${SITE}/boards`, 'daily', '0.9', lastmod);
+    for (const s of sources) add(`${SITE}/board/${s.key}`, 'hourly', '0.8', lastmod);
+    for (const t of TOPICS) add(`${SITE}/topic/${t.slug}`, 'hourly', '0.7', lastmod);
     add(`${SITE}/today/`, 'daily', '0.6', lastmod);
-    for (const d of days.slice(0, ARCHIVE_IN_SITEMAP)) add(`${SITE}/today/${d.date}.html`, 'monthly', '0.5', d.date);
-    add(`${SITE}/guide.html`, 'weekly', '0.6', lastmod);
+    for (const d of days.slice(0, ARCHIVE_IN_SITEMAP)) add(`${SITE}/today/${d.date}`, 'monthly', '0.5', d.date);
+    add(`${SITE}/guide`, 'weekly', '0.6', lastmod);
 
     return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.join('\n')}\n</urlset>\n`;
 }
