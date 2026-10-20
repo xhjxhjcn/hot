@@ -52,7 +52,7 @@ const OG_IMAGE = SITE + '/assets/logo.png';
 const INDEXNOW_KEY = 'a7f3c9e21b84d65038c1f7a9e4b2d608';
 
 // 首页卡片内固定展示条数，必须与 app.js 的 CARD_ITEMS 一致
-const CARD_ITEMS = 10;
+const CARD_ITEMS = 8;
 // 归档快照每个源保留条数
 const ARCHIVE_PER_SOURCE = 20;
 // sitemap 里最多列入多少天归档
@@ -341,47 +341,76 @@ function hotRowHTML(it, i) {
     const hot = fmtHot(it.hot);
     const desc = (it.desc || '').trim();
     const chip = desc && desc.length <= 6 ? `<span class="row-chip">${esc(desc)}</span>` : '';
+    const title = it.title || '（标题缺失）';
     const href = it.url ? esc(it.url) : '';
     const tag = href ? 'a' : 'div';
     const attrs = (href ? ` href="${href}" target="_blank" rel="noopener noreferrer"` : '')
-        + ` title="${esc(it.title)}"`;
+        + ` title="${esc(title)}"`;
     return `<${tag} class="hot-row"${attrs}>
             <span class="rank ${rankCls}">${i + 1}</span>
             <span class="row-main">
-                <span class="row-title">${esc(it.title)}${chip}</span>
+                <span class="row-title">${esc(title)}${chip}</span>
             </span>
             ${hot ? `<span class="row-hot">${hot}</span>` : ''}
         </${tag}>`;
 }
 
+function hm(iso) {
+    const d = new Date(iso);
+    if (isNaN(d)) return '';
+    const p = (n) => String(n).padStart(2, '0');
+    return `${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
 function cardHTML(s, updated) {
     const items = s.items || [];
     const shown = items.slice(0, CARD_ITEMS);
+    const total = items.length;
+    const upd = updated ? hm(updated) : '';
 
     let body;
-    if (!s.ok || !shown.length) {
-        body = `<div class="card-error"><strong>暂时没有抓到数据</strong>${esc(s.error || '源站可能正在限流')}</div>`;
+    if (!s.ok || !total) {
+        body = `<div class="card-error"><strong>暂无数据</strong>${esc(s.error || '源站可能正在限流，稍后自动重试')}</div>`;
     } else {
         body = shown.map(hotRowHTML).join('');
     }
 
-    const more = items.length > CARD_ITEMS && s.ok
-        ? `<button type="button" class="expand" data-expand="${esc(s.key)}">查看全部 ${items.length} 条<span class="expand-arrow" aria-hidden="true">↗</span></button>`
+    const more = s.ok && total > CARD_ITEMS
+        ? `<button type="button" class="expand" data-expand="${esc(s.key)}">查看全部 ${total} 条<span class="expand-arrow" aria-hidden="true">↗</span></button>`
         : '<span></span>';
 
-    return `<article class="hot-card${s.ok ? '' : ' is-off'}" id="card-${esc(s.key)}" data-key="${esc(s.key)}">
+    return `<article class="hot-card${s.ok ? '' : ' is-off'}" id="card-${esc(s.key)}" data-key="${esc(s.key)}"
+                 aria-labelledby="card-t-${esc(s.key)}">
             <header class="card-head">
-                <img class="card-icon" src="${esc(s.icon)}" alt="" loading="lazy"
+                <img class="card-icon" src="${esc(s.icon)}" alt="" loading="lazy" width="20" height="20"
                      onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'card-icon',textContent:'📰'}))">
-                <h2 class="card-title">${esc(s.label)}</h2>
+                <h2 class="card-title" id="card-t-${esc(s.key)}">${esc(s.label)}</h2>
                 ${s.badge ? `<span class="card-badge">${esc(s.badge)}</span>` : ''}
+                <span class="card-count">${total} 条</span>
             </header>
             <div class="card-body">${body}</div>
             <footer class="card-foot">
-                <span class="upd">${updated ? esc(relTime(updated)) : '--'}</span>
+                <span class="upd">${upd ? '更新 ' + upd : '--'}</span>
                 ${more}
             </footer>
         </article>`;
+}
+
+/* 页脚分组平台索引：规则来自 data/taxonomy.json，与 app.js 输出同一份结构 */
+function footerGroupsHTML(sources, tax) {
+    if (!tax || !Array.isArray(tax.categories) || !tax.map) return '';
+    const map = tax.map;
+    return tax.categories.filter((c) => c.key !== 'all').map((c) => {
+        const list = sources.filter((s) => (map[s.key] || []).indexOf(c.key) >= 0);
+        if (!list.length) return '';
+        const links = list.map((s) =>
+            `<a href="/board/${esc(s.key)}" title="${esc(s.label)}${esc(s.badge || '热榜')}">${esc(s.label)}</a>`
+        ).join('');
+        return `<div class="fgroup">
+                <h3 class="fgroup-title">${esc(c.label)}<span class="fgroup-n">${list.length}</span></h3>
+                <div class="fgroup-links">${links}</div>
+            </div>`;
+    }).join('');
 }
 
 /* ------------------------------------------------------------------ */
@@ -535,19 +564,15 @@ function shell(opts) {
 /* ------------------------------------------------------------------ */
 
 /* 1. 首页：把预渲染内容填进源 index.html 的锚点 */
-function renderIndex(template, data, sources, cfg) {
+function renderIndex(template, data, sources, cfg, tax) {
     const updated = data.updated;
     const ok = sources.filter((s) => s.ok).length;
     const items = sources.reduce((n, s) => n + (s.ok ? (s.items || []).length : 0), 0);
 
-    // 头部只留一行摘要，别把卡片挤到屏幕外
-    const overviewSub = `已聚合 ${ok} 个平台 · ${items.toLocaleString('zh-CN')} 条热点 · 每 30 分钟自动更新`;
-
     const grid = sources.map((s) => cardHTML(s, updated)).join('\n            ');
 
-    const footerLinks = sources
-        .map((s) => `<a href="${esc(s.link)}" target="_blank" rel="noopener noreferrer">${esc(s.label)}</a>`)
-        .join('');
+    const footerGroups = footerGroupsHTML(sources, tax) || sources
+        .map((s) => `<a href="/board/${esc(s.key)}">${esc(s.label)}</a>`).join('');
 
     // 逐处替换模板锚点。rel 直接改写外层 html 变量，不做链式赋值 ——
     // 链式赋值时每次都会拿着「原始模板」再替换一遍，前面的改动会被覆盖掉。
@@ -560,13 +585,17 @@ function renderIndex(template, data, sources, cfg) {
         html = html.replace(find, () => repl);
     };
 
-    rel('<p id="overviewSub">正在加载各平台榜单…</p>',
-        `<p id="overviewSub">${esc(overviewSub)}</p>`);
+    // 概览数字：全部来自 data/hot.json，不写死
+    rel('<span id="statPlatforms">--</span>', `<span id="statPlatforms">${ok}</span>`);
+    rel('<span id="statItems">--</span>',
+        `<span id="statItems">${items.toLocaleString('zh-CN')}</span>`);
+    rel('<span id="statUpdated">--</span>',
+        `<span id="statUpdated" title="${esc(relTime(updated))}">${esc(absTime(updated))}</span>`);
     rel('<span id="dataTime">--</span>', `<span id="dataTime">${esc(absTime(updated))}</span>`);
     rel('<div class="hot-grid" id="hotGrid"></div>',
         `<div class="hot-grid" id="hotGrid">\n            ${grid}\n            </div>`);
-    rel('<div class="footer-links" id="footerLinks"></div>',
-        `<div class="footer-links" id="footerLinks">${footerLinks}</div>`);
+    rel('<div class="footer-groups" id="footerLinks"></div>',
+        `<div class="footer-groups" id="footerLinks">${footerGroups}</div>`);
     rel('<div class="footer-beian" id="footerBeian" hidden></div>',
         `<div class="footer-beian" id="footerBeian">${beianHTML(cfg)}</div>`);
     rel('<nav class="board-nav" id="boardNav" hidden aria-label="全部榜单导航"></nav>',
@@ -1129,6 +1158,7 @@ function run(opts) {
         throw new Error('data/hot.json 缺失或格式异常，预渲染中止');
     }
     const cfg = readJSON(path.join(root, 'data', 'config.json'), {});
+    const tax = readJSON(path.join(root, 'data', 'taxonomy.json'), null);
     const sources = sortSources(data.sources);
     const updated = data.updated || new Date().toISOString();
     const days = collectDays(root);
@@ -1137,7 +1167,7 @@ function run(opts) {
 
     // 1) 首页
     const tpl = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
-    const indexHTML = renderIndex(tpl, data, sources, cfg);
+    const indexHTML = renderIndex(tpl, data, sources, cfg, tax);
     write(path.join(dist, 'index.html'), indexHTML);
     stats.index = 1;
 
