@@ -1,2 +1,5 @@
 node_modules/
 dist/
+
+# 本地预览 / 截图 / 回归脚本的临时区，不进仓库
+_live/
